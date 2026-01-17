@@ -71,18 +71,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   // Isso resolve o problema de logout e loop de redirecionamento
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production' 
-        ? `__Secure-authjs.session-token` 
-        : `authjs.session-token`,
+      // Nome EXCLUSIVO para o admin
+      name: `gato-admin-token`, 
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        // O ponto no início (.) permite compartilhar entre subdomínios
-        domain: process.env.NODE_ENV === "production"
-          ? ".gatocomics.com.br"
-          : ".gatocomics.local", 
+        // SEM DOMÍNIO DEFINIDO (assim ele pega só o subdomínio atual)
       },
     },
   },

@@ -1,23 +1,11 @@
-"use server";
+import { cookies } from "next/headers";
+import { signOut } from "@/auth";
 
-import { signIn } from "@/auth";
-import { AuthError } from "next-auth";
+export async function logout() {
+  const cookieStore = await cookies();
+  
+  // Deleta o cookie específico do admin
+  cookieStore.delete("gato-admin-token");
 
-export async function authenticate(prevState: string | undefined, formData: FormData) {
-  try {
-    await signIn("credentials", {
-      ...Object.fromEntries(formData),
-      redirectTo: "/dashboard",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Credenciais inválidas.";
-        default:
-          return "Algo deu errado.";
-      }
-    }
-    throw error;
-  }
+  await signOut({ redirectTo: "/login" });
 }
