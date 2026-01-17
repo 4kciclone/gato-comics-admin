@@ -1,0 +1,512 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --------------------------------------------------------
+// ENUMS
+// --------------------------------------------------------
+enum UserRole {
+  USER
+  OWNER
+  ADMIN
+  MODERATOR
+  ACCOUNTANT
+  UPLOADER
+  EDITOR
+  TRANSLATOR
+  QC
+  WORK_OWNER
+}
+
+enum ChapterWorkStatus {
+  DRAFT
+  TRANSLATING
+  EDITING
+  QC_PENDING
+  QC_REJECTED
+  READY
+  PUBLISHED
+}
+
+enum UnlockType {
+  RENTAL
+  PERMANENT
+}
+
+enum TransactionType {
+  DEPOSIT
+  SPEND
+  EARN
+  BONUS
+}
+
+enum CurrencyType {
+  PREMIUM
+  LITE
+}
+
+enum LibraryStatus {
+  READING
+  COMPLETED
+  ON_HOLD
+  DROPPED
+  PLAN_TO_READ
+}
+
+enum CosmeticType {
+  AVATAR_FRAME
+  COMMENT_BACKGROUND
+  USERNAME_COLOR
+  PROFILE_BANNER
+}
+
+enum CosmeticRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum ReportStatus {
+  PENDING
+  RESOLVED
+}
+
+enum SubscriptionTier {
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+}
+
+enum ActivityType {
+  NEW_USER
+  NEW_SUBSCRIPTION
+  NEW_CHAPTER
+  NEW_REPORT
+  POPULAR_POST
+}
+
+enum AgeRating {
+  LIVRE
+  DEZ_ANOS
+  DOZE_ANOS
+  QUATORZE_ANOS
+  DEZESSEIS_ANOS
+  DEZOITO_ANOS
+}
+
+// --------------------------------------------------------
+// MODELOS DE USUÁRIO & ECONOMIA
+// --------------------------------------------------------
+model User {
+  id                          String    @id @default(cuid())
+  username                    String    @unique
+  name                        String?
+  email                       String    @unique
+  emailVerified               DateTime?
+  image                       String?
+  password                    String?
+  role                        UserRole  @default(USER)
+  
+  // LGPD
+  dateOfBirth                 DateTime
+  termsAcceptedAt             DateTime  @default(now())
+  privacyVersion              String    @default("v1.0")
+
+  // Economia
+  balancePremium              Int             @default(0)
+  liteCoinBatches             LiteCoinBatch[]
+  xp                          Int             @default(0)
+  
+  // Cosméticos
+  mutedUntil                  DateTime?
+  equippedAvatarFrameId       String?
+  equippedCommentBackgroundId String?
+  equippedProfileBannerId     String?
+  
+  equippedAvatarFrame         Cosmetic? @relation("EquippedAvatarFrame", fields: [equippedAvatarFrameId], references: [id], onDelete: SetNull)
+  equippedCommentBackground   Cosmetic? @relation("EquippedCommentBg", fields: [equippedCommentBackgroundId], references: [id], onDelete: SetNull)
+  equippedProfileBanner       Cosmetic? @relation("EquippedProfileBanner", fields: [equippedProfileBannerId], references: [id], onDelete: SetNull)
+
+  // Relacionamentos Gerais
+  transactions        Transaction[]
+  unlocks             Unlock[]
+  reviews             Review[]
+  library             LibraryEntry[]
+  cosmetics           UserCosmetic[]
+  comments            Comment[]
+  posts               Post[]
+  likes               Like[]
+  workLikes           WorkLike[]
+  
+  // Social
+  following           Follow[]       @relation("Following")
+  followers           Follow[]       @relation("Followers")
+  
+  // Moderação
+  reportsMade         Report[]       @relation("Reporter")
+  
+  // Notificações
+  notifications       Notification[] @relation("Notifications")
+  originNotifications Notification[] @relation("OriginNotifications")
+
+  // --- NOVOS RELACIONAMENTOS (Admin/Staff) ---
+  
+  // Obras que este usuário é DONO (Parceiro)
+  ownedWorks          Work[]         @relation("WorkOwner")
+  
+  // Obras onde este usuário TRABALHA (Staff)
+  staffWorks          WorkStaff[]
+
+  // Assinatura
+  stripeCustomerId       String?           @unique
+  subscriptionTier       SubscriptionTier?
+  subscriptionId         String?           @unique
+  subscriptionValidUntil DateTime?
+  entitlementChangeUntil DateTime?
+  workEntitlements       WorkEntitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  amount      Int
+  currency    CurrencyType
+  type        TransactionType
+  description String?
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("transactions")
+}
+
+model WorkEntitlement {
+  id        String   @id @default(cuid())
+  userId    String
+  workId    String
+  grantedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workId])
+  @@map("work_entitlements")
+}
+
+model Work {
+  id             String   @id @default(cuid())
+  title          String
+  slug           String   @unique
+  synopsis       String   @db.Text
+  coverUrl       String
+  bannerUrl      String?
+  author         String
+  artist         String?
+  studio         String?
+  
+  // Dono da Obra (Parceiro)
+  ownerId        String?
+  owner          User?    @relation("WorkOwner", fields: [ownerId], references: [id])
+  
+  genres         String[]
+  isAdult        Boolean  @default(false)
+  isHidden       Boolean  @default(false)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ageRating      AgeRating    @default(LIVRE)
+  
+  contentTags    String[]
+  
+  // Relacionamentos
+  chapters       Chapter[]
+  reviews        Review[]
+  entitlements   WorkEntitlement[]
+  libraryEntries LibraryEntry[]
+  comments       Comment[]
+  likes          WorkLike[]
+  
+  // Staff da Obra
+  staff          WorkStaff[]
+
+  @@map("works")
+}
+
+model Chapter {
+  id                String            @id @default(cuid())
+  workId            String
+  title             String
+  slug              String
+  order             Float
+  pricePremium      Int               @default(3)
+  priceLite         Int               @default(10)
+  isFree            Boolean           @default(false)
+  images            String[]
+  
+  // Workflow
+  workStatus        ChapterWorkStatus @default(DRAFT)
+  rawZipUrl         String?
+  translationUrl    String?
+  editedZipUrl      String?
+  workflowStartedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  unlocks   Unlock[]
+  comments  Comment[]
+
+  @@unique([workId, slug])
+  @@unique([workId, order])
+  @@index([workId])
+  @@map("chapters")
+}
+
+model WorkStaff {
+  id     String   @id @default(cuid())
+  workId String
+  userId String
+  role   UserRole // EDITOR, TRANSLATOR ou QC
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workId, userId, role])
+}
+
+model Unlock {
+  id        String     @id @default(cuid())
+  userId    String
+  chapterId String
+  type      UnlockType
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter   Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chapterId])
+  @@map("unlocks")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  workId    String
+  rating    Int      @default(5)
+  text      String?  @db.Text
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workId])
+  @@map("reviews")
+}
+
+model LibraryEntry {
+  id                String        @id @default(cuid())
+  userId            String
+  workId            String
+  status            LibraryStatus @default(READING)
+  lastReadChapterId String?
+  updatedAt         DateTime      @updatedAt
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work              Work          @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workId])
+  @@map("library_entries")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  isSpoiler Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  workId    String?
+  chapterId String?
+  postId    String?
+  parentId  String?
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work?    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  chapter   Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  parent    Comment?  @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies   Comment[] @relation("Replies")
+  reports   Report[]
+
+  @@index([workId])
+  @@index([chapterId])
+  @@index([postId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model Cosmetic {
+  id                     String         @id @default(cuid())
+  name                   String
+  description            String
+  type                   CosmeticType
+  rarity                 CosmeticRarity
+  price                  Int
+  imageUrl               String
+  isActive               Boolean        @default(true)
+
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  owners                 UserCosmetic[]
+  equippedAvatarFrames   User[]         @relation("EquippedAvatarFrame")
+  equippedCommentBgs     User[]         @relation("EquippedCommentBg")
+  equippedProfileBanners User[]         @relation("EquippedProfileBanner")
+
+  @@map("cosmetics")
+}
+
+model UserCosmetic {
+  userId     String
+  cosmeticId String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cosmetic   Cosmetic @relation(fields: [cosmeticId], references: [id], onDelete: Cascade)
+
+  @@id([userId, cosmeticId])
+  @@map("user_cosmetics")
+}
+
+model Setting {
+  key   String @id
+  value String
+
+  @@map("settings")
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  content   String    @db.Text
+  imageUrl  String?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes     Like[]
+  parentId  String?
+  parent    Post?     @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  replies   Post[]    @relation("Replies")
+  comments  Comment[]
+  reports   Report[]
+
+  @@index([userId])
+  @@index([parentId])
+  @@map("posts")
+}
+
+model Like {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@map("likes")
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@map("follows")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reason     String
+  notes      String?      @db.Text
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  resolvedAt DateTime?
+  
+  commentId  String?
+  comment    Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  postId     String?
+  post       Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  reporterId String
+  reporter   User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+  @@index([postId])
+  @@index([reporterId])
+  @@map("reports")
+}
+
+model Notification {
+  id           String   @id @default(cuid())
+  userId       String
+  originUserId String
+  type         String
+  link         String
+  isRead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  user         User     @relation("Notifications", fields: [userId], references: [id], onDelete: Cascade)
+  originUser   User     @relation("OriginNotifications", fields: [originUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model WorkLike {
+  userId    String
+  workId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workId])
+  @@map("work_likes")
+}
+
+model LiteCoinBatch {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("lite_coin_batches")
+}
+
+model ActivityLog {
+  id        String       @id @default(cuid())
+  type      ActivityType
+  message   String
+  link      String?
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  @@index([createdAt])
+  @@map("activity_logs")
+}
