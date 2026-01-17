@@ -3,29 +3,41 @@ import { UserRole } from "@prisma/client";
 
 export const authConfig = {
   pages: {
-    signIn: "/login", // Página de login do admin
+    signIn: "/login", // Define a página de login oficial
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const role = auth?.user?.role;
       const isOnLogin = nextUrl.pathname.startsWith("/login");
+      const isApiAuth = nextUrl.pathname.startsWith("/api/auth");
 
-      // Se estiver na tela de login, deixa passar
+      // 1. Sempre permitir rotas de API de autenticação (para o login funcionar)
+      if (isApiAuth) return true;
+
+      // 2. Lógica da Página de Login
       if (isOnLogin) {
-        if (isLoggedIn) return Response.redirect(new URL("/dashboard", nextUrl));
-        return true;
+        // Se o usuário já está logado e tenta entrar no login, manda pro dashboard
+        if (isLoggedIn) {
+          return Response.redirect(new URL("/dashboard", nextUrl));
+        }
+        // Se não está logado, PERMITE ficar na página de login (Quebra o loop)
+        return true; 
       }
 
-      // Se não estiver logado, bloqueia tudo
-      if (!isLoggedIn) return false;
-
-      // Se logado, mas é usuário comum (leitor), BLOQUEIA
-      if (role !== "ADMIN" && role !== "OWNER" && role !== "MODERATOR") {
-        return false; // Manda pro login (ou poderia mandar pra uma página de erro 403)
+      // 3. Para todas as outras páginas (Dashboard, Obras, etc)
+      if (!isLoggedIn) {
+        return false; // Redireciona para /login automaticamente
       }
 
-      return true; // É Staff, pode entrar
+      // 4. Verificação de Cargo (Opcional aqui, pois o Layout já protege)
+      // Mas é bom ter uma camada extra
+      const role = auth?.user?.role;
+      if (role === "USER") {
+        // Se for usuário comum tentando acessar admin, bloqueia
+        return false; 
+      }
+
+      return true; // Permite acesso
     },
     jwt({ token, user }) {
       if (user) {
