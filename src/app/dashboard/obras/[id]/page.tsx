@@ -76,8 +76,12 @@ export default async function WorkDetailsPage({ params }: { params: Promise<{ id
                            </Badge>
                         </td>
                         <td className="p-3 text-right">
-                           <Button variant="ghost" size="sm" className="text-zinc-400">Editar</Button>
-                        </td>
+                          <Link href={`/dashboard/obras/${work.id}/chapters/${chap.id}`}>
+                            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white hover:bg-zinc-800">
+                            Editar
+                            </Button>
+                          </Link>
+                          </td>
                       </tr>
                     ))}
                   </tbody>
