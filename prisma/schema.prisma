@@ -113,6 +113,13 @@ model User {
   image                       String?
   password                    String?
   role                        UserRole  @default(USER)
+
+  location             String?        // Cidade/Estado
+  privacySettings      String         @default("PUBLIC") // PUBLIC, FOLLOWERS, PRIVATE
+  lastNicknameChange   DateTime?      // Para controlar os 90 dias
+  bio                  String?        @db.Text
+
+  featuredWorks        Work[]         @relation("UserFeaturedWorks")
   
   // LGPD
   dateOfBirth                 DateTime
@@ -242,6 +249,8 @@ model Work {
   
   // Staff da Obra
   staff          WorkStaff[]
+
+  featuredByUsers      User[]         @relation("UserFeaturedWorks")
 
   @@map("works")
 }
