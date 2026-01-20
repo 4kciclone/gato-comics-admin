@@ -133,16 +133,22 @@ export async function reviewTask(chapterId: string, decision: "APPROVE" | "REJEC
  * Publicar Capítulo (Final)
  */
 export async function publishChapter(chapterId: string) {
+    const session = await auth();
+    if (!["OWNER", "ADMIN", "UPLOADER"].includes(session?.user?.role || "")) {
+        return { error: "Sem permissão." };
+    }
+
     try {
         await prisma.chapter.update({
             where: { id: chapterId },
             data: { 
                 workStatus: "PUBLISHED",
-                createdAt: new Date() // Atualiza data de lançamento
+                createdAt: new Date() // Atualiza a data para aparecer no topo do feed
             }
         });
-        revalidatePath("/dashboard/obras");
-        return { success: "Capítulo publicado!" };
+        // Revalida a página da obra no admin
+        revalidatePath("/dashboard/obras/[id]"); 
+        return { success: "Publicado com sucesso!" };
     } catch(e) {
         return { error: "Erro ao publicar" };
     }
