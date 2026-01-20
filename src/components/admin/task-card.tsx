@@ -1,53 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileText, FileImage, CheckCircle, XCircle, UploadCloud, Download, Loader2, Clock } from "lucide-react";
-import { submitTask, reviewTask } from "@/actions/workflow";
+import { FileText, FileImage, CheckCircle, XCircle, UploadCloud, Download, Loader2, Clock, Upload } from "lucide-react";
+import { submitTask, reviewTask, uploadTaskFile } from "@/actions/workflow"; 
 import { toast } from "sonner";
 
 interface TaskCardProps {
   chapter: any;
-  userRole: string; // O papel do usuário logado NESSA obra (ex: EDITOR)
+  userRole: string;
 }
 
 export function TaskCard({ chapter, userRole }: TaskCardProps) {
   const [isPending, setIsPending] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
-  // Define se este card é acionável pelo usuário atual
   const isMyTurn = 
     (userRole === "TRANSLATOR" && chapter.workStatus === "TRANSLATING") ||
     (userRole === "EDITOR" && chapter.workStatus === "EDITING") ||
     (userRole === "QC" && chapter.workStatus === "QC_PENDING");
 
-  const statusColors: any = {
+  const statusColors: Record<string, string> = {
     TRANSLATING: "bg-blue-500/20 text-blue-400 border-blue-500/50",
     EDITING: "bg-purple-500/20 text-purple-400 border-purple-500/50",
     QC_PENDING: "bg-yellow-500/20 text-yellow-400 border-yellow-500/50",
     READY: "bg-green-500/20 text-green-400 border-green-500/50",
   };
 
+  // Handler para Revisão (QC)
   const handleReview = async (decision: "APPROVE" | "REJECT") => {
     setIsPending(true);
     const res = await reviewTask(chapter.id, decision);
     setIsPending(false);
-    if (res.error) toast.error(res.error);
-    else toast.success(res.success);
+    
+    // CORREÇÃO: Usar ?. para acessar propriedades com segurança
+    if (res?.error) {
+      toast.error(res.error);
+    } else if (res?.success) {
+      toast.success(res.success);
+    }
   };
 
+  // Handler para Upload Principal (Modal)
   async function handleSubmit(formData: FormData) {
     setIsPending(true);
     const res = await submitTask(formData);
     setIsPending(false);
-    if (res.error) {
+    
+    // CORREÇÃO: Usar ?.
+    if (res?.error) {
         toast.error(res.error);
-    } else {
+    } else if (res?.success) {
         toast.success(res.success);
         setIsUploadOpen(false);
     }
@@ -74,7 +82,6 @@ export function TaskCard({ chapter, userRole }: TaskCardProps) {
       </CardHeader>
 
       <CardContent className="p-4 space-y-3">
-        {/* ARQUIVOS DISPONÍVEIS */}
         <div className="space-y-2">
             {chapter.rawZipUrl && (
                 <a href={chapter.rawZipUrl} target="_blank" className="flex items-center gap-2 text-xs p-2 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition-colors">
@@ -98,18 +105,27 @@ export function TaskCard({ chapter, userRole }: TaskCardProps) {
                 </a>
             )}
         </div>
+
+        <div className="space-y-2 pt-2 border-t border-zinc-800/50">
+            {userRole === "TRANSLATOR" && chapter.workStatus === "TRANSLATING" && (
+               <UploadForm chapterId={chapter.id} role="TRANSLATOR" label="Enviar Tradução (.txt/.docx)" />
+            )}
+            {userRole === "EDITOR" && (chapter.workStatus === "EDITING" || chapter.workStatus === "QC_REJECTED") && (
+               <UploadForm chapterId={chapter.id} role="EDITOR" label="Enviar Edição (.zip)" />
+            )}
+        </div>
+
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
         {isMyTurn ? (
             <div className="w-full">
-                {/* AÇÕES DE TRADUTOR / EDITOR */}
                 {(userRole === "TRANSLATOR" || userRole === "EDITOR") && (
                     <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
                         <DialogTrigger asChild>
                             <Button className="w-full bg-[#FFD700] text-black hover:bg-[#FFD700]/90 font-bold">
                                 <UploadCloud className="w-4 h-4 mr-2" />
-                                {userRole === "TRANSLATOR" ? "Enviar Tradução" : "Enviar Edição"}
+                                {userRole === "TRANSLATOR" ? "Entregar Tradução" : "Entregar Edição"}
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="bg-zinc-900 border-zinc-800 text-white">
@@ -132,7 +148,6 @@ export function TaskCard({ chapter, userRole }: TaskCardProps) {
                     </Dialog>
                 )}
 
-                {/* AÇÕES DE QC */}
                 {userRole === "QC" && (
                     <div className="flex gap-2 w-full">
                         <Button 
@@ -165,4 +180,32 @@ export function TaskCard({ chapter, userRole }: TaskCardProps) {
       </CardFooter>
     </Card>
   );
+}
+
+function UploadForm({ chapterId, role, label }: { chapterId: string, role: string, label: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleQuickUpload = async (formData: FormData) => {
+    startTransition(async () => {
+        const res = await uploadTaskFile(formData);
+        
+        // CORREÇÃO: Usar ?.
+        if (res?.error) toast.error(res.error);
+        else if (res?.success) toast.success(res.success);
+    });
+  };
+
+  return (
+    <form action={handleQuickUpload} className="space-y-2">
+       <input type="hidden" name="chapterId" value={chapterId} />
+       <input type="hidden" name="role" value={role} />
+       <div className="flex gap-2">
+          <Input type="file" name="file" className="text-xs bg-zinc-950 h-8" required />
+          <Button type="submit" size="icon" disabled={isPending} className="bg-[#FFD700] text-black h-8 w-8 shrink-0">
+             {isPending ? <Loader2 className="w-3 h-3 animate-spin"/> : <Upload size={14}/>}
+          </Button>
+       </div>
+       <p className="text-[10px] text-zinc-500">{label}</p>
+    </form>
+  )
 }

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { ChapterWorkStatus } from "@prisma/client";
 
-// Configuração R2 (Reaproveitando)
+// Configuração R2
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT,
@@ -16,52 +16,76 @@ const s3 = new S3Client({
   },
 });
 
+type WorkflowState = {
+  error?: string;
+  success?: string;
+} | null;
+
 /**
- * Enviar trabalho (Tradução ou Edição)
+ * Enviar Tarefa (Tradução ou Edição)
+ * Usado tanto pelo Modal principal quanto pelo formulário rápido
  */
-export async function submitTask(formData: FormData) {
+export async function submitTask(formData: FormData): Promise<WorkflowState> {
   const session = await auth();
-  if (!session) return { error: "Não autorizado." };
+  if (!session?.user?.id) return { error: "Login necessário." };
 
   const chapterId = formData.get("chapterId") as string;
-  const role = formData.get("role") as string; // TRANSLATOR ou EDITOR
+  const role = formData.get("role") as "TRANSLATOR" | "EDITOR";
   const file = formData.get("file") as File;
 
-  if (!file || file.size === 0) return { error: "Arquivo obrigatório." };
+  if (!file || file.size === 0) return { error: "Arquivo vazio." };
 
   try {
-    // 1. Upload do Arquivo
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const fileName = `workflow/${role.toLowerCase()}/${Date.now()}-${file.name}`;
-    
+    // 1. Verificar permissão na obra
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+      include: { work: { include: { staff: true } } }
+    });
+
+    if (!chapter) return { error: "Capítulo não encontrado." };
+
+    // Verifica se o usuário faz parte da staff ou é admin
+    const isStaff = chapter.work.staff.some(
+      s => s.userId === session.user.id && s.role === role
+    );
+    const isAdmin = ["ADMIN", "OWNER", "UPLOADER"].includes(session.user.role);
+
+    if (!isStaff && !isAdmin) return { error: "Sem permissão." };
+
+    // 2. Upload para o R2
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const fileName = `workflow/${chapter.work.slug}/${chapter.slug}/${role.toLowerCase()}-${Date.now()}.${file.name.split('.').pop()}`;
+
     await s3.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileName,
-      Body: fileBuffer,
-      ContentType: file.type, // .zip, .txt, .pdf
+      Body: buffer,
+      ContentType: file.type,
     }));
 
     const fileUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
 
-    // 2. Atualizar Banco de Dados e Mudar Status
-    let nextStatus: ChapterWorkStatus = "DRAFT";
-    let updateData: any = {};
-
+    // 3. Atualizar Status e URL
     if (role === "TRANSLATOR") {
-      nextStatus = "EDITING"; // Vai para o Editor
-      updateData = { translationUrl: fileUrl, workStatus: nextStatus };
+      await prisma.chapter.update({
+        where: { id: chapterId },
+        data: {
+          translationUrl: fileUrl,
+          workStatus: "EDITING" // Passa a bola para o Editor
+        }
+      });
     } else if (role === "EDITOR") {
-      nextStatus = "QC_PENDING"; // Vai para o QC
-      updateData = { editedZipUrl: fileUrl, workStatus: nextStatus };
+      await prisma.chapter.update({
+        where: { id: chapterId },
+        data: {
+          editedZipUrl: fileUrl, 
+          workStatus: "QC_PENDING" // Passa a bola para o QC
+        }
+      });
     }
 
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: updateData
-    });
-
     revalidatePath("/dashboard/workspace");
-    return { success: "Trabalho enviado! O status do capítulo foi atualizado." };
+    return { success: "Arquivo enviado com sucesso!" };
 
   } catch (error) {
     console.error(error);
@@ -70,23 +94,56 @@ export async function submitTask(formData: FormData) {
 }
 
 /**
- * QC: Aprovar ou Rejeitar
+ * Alias para manter compatibilidade caso algum componente use este nome
+ */
+export const uploadTaskFile = submitTask;
+
+/**
+ * Revisão do QC (Aprovar ou Rejeitar)
  */
 export async function reviewTask(chapterId: string, decision: "APPROVE" | "REJECT") {
   const session = await auth();
-  // Validar se é QC/Admin aqui...
+  const role = session?.user?.role;
+  
+  // Validar se é QC ou Admin
+  if (!["QC", "ADMIN", "OWNER", "UPLOADER"].includes(role || "")) {
+    return { error: "Sem permissão." };
+  }
 
   try {
-    const newStatus: ChapterWorkStatus = decision === "APPROVE" ? "READY" : "TRANSLATING"; // Se rejeitar, volta pro inicio (ou editing)
-    
-    await prisma.chapter.update({
-      where: { id: chapterId },
-      data: { workStatus: newStatus }
-    });
-
+    if (decision === "APPROVE") {
+      await prisma.chapter.update({
+        where: { id: chapterId },
+        data: { workStatus: "READY" } // Pronto para publicar
+      });
+    } else {
+      await prisma.chapter.update({
+        where: { id: chapterId },
+        data: { workStatus: "QC_REJECTED" } // Volta para edição
+      });
+    }
     revalidatePath("/dashboard/workspace");
-    return { success: decision === "APPROVE" ? "Capítulo aprovado!" : "Capítulo devolvido para revisão." };
-  } catch (error) {
-    return { error: "Erro ao processar revisão." };
+    return { success: decision === "APPROVE" ? "Aprovado!" : "Rejeitado." };
+  } catch (e) {
+    return { error: "Erro ao revisar." };
   }
+}
+
+/**
+ * Publicar Capítulo (Final)
+ */
+export async function publishChapter(chapterId: string) {
+    try {
+        await prisma.chapter.update({
+            where: { id: chapterId },
+            data: { 
+                workStatus: "PUBLISHED",
+                createdAt: new Date() // Atualiza data de lançamento
+            }
+        });
+        revalidatePath("/dashboard/obras");
+        return { success: "Capítulo publicado!" };
+    } catch(e) {
+        return { error: "Erro ao publicar" };
+    }
 }
