@@ -11,7 +11,6 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function CreateCodeForm() {
-  // Agora a assinatura da função bate com o esperado pelo useActionState
   const [state, formAction, isPending] = useActionState(createPromoCode, null);
 
   useEffect(() => {
@@ -20,41 +19,70 @@ export function CreateCodeForm() {
   }, [state]);
 
   return (
-    <Card className="bg-[#111] border-zinc-800">
-        <CardHeader><CardTitle>Criar Novo</CardTitle></CardHeader>
+    // MUDANÇA: bg-zinc-900 (mais claro que o fundo da página) para destacar o card
+    <Card className="bg-zinc-900 border-zinc-800 shadow-lg">
+        <CardHeader>
+            <CardTitle className="text-white">Criar Novo</CardTitle>
+        </CardHeader>
         <CardContent>
-            <form action={formAction} className="space-y-4">
+            <form action={formAction} className="space-y-5">
                 <div className="space-y-2">
-                    <Label>Código (Ex: WELCOME2026)</Label>
-                    <Input name="code" className="bg-zinc-950 border-zinc-800 uppercase" required placeholder="GATO10" />
+                    <Label className="text-zinc-300">Código (Ex: WELCOME2026)</Label>
+                    {/* MUDANÇA: Input preto (bg-black) com borda mais visível (border-zinc-700) */}
+                    <Input 
+                        name="code" 
+                        className="bg-black border-zinc-700 text-white placeholder:text-zinc-600 uppercase font-mono tracking-wider" 
+                        required 
+                        placeholder="GATO10" 
+                    />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label>Tipo</Label>
+                        <Label className="text-zinc-300">Tipo</Label>
                         <Select name="type" defaultValue="LITE">
-                            <SelectTrigger className="bg-zinc-950 border-zinc-800"><SelectValue/></SelectTrigger>
-                            <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                            <SelectTrigger className="bg-black border-zinc-700 text-white">
+                                <SelectValue/>
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900 border-zinc-700 text-white">
                                 <SelectItem value="LITE">Lite (Roxa)</SelectItem>
                                 <SelectItem value="PREMIUM">Premium (Ouro)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label>Quantidade</Label>
-                        <Input type="number" name="amount" defaultValue="10" className="bg-zinc-950 border-zinc-800" required />
+                        <Label className="text-zinc-300">Quantidade</Label>
+                        <Input 
+                            type="number" 
+                            name="amount" 
+                            defaultValue="10" 
+                            className="bg-black border-zinc-700 text-white" 
+                            required 
+                        />
                     </div>
                 </div>
+
                 <div className="space-y-2">
-                    <Label>Limite de Usos (Opcional)</Label>
-                    <Input type="number" name="maxUses" placeholder="Vazio = Infinito" className="bg-zinc-950 border-zinc-800" />
+                    <Label className="text-zinc-300">Limite de Usos (Opcional)</Label>
+                    <Input 
+                        type="number" 
+                        name="maxUses" 
+                        placeholder="Vazio = Infinito" 
+                        className="bg-black border-zinc-700 text-white placeholder:text-zinc-600" 
+                    />
                 </div>
+
                 <div className="space-y-2">
-                    <Label>Data de Expiração (Opcional)</Label>
-                    {/* CORREÇÃO TAILWIND: scheme-dark em vez de [color-scheme:dark] */}
-                    <Input type="date" name="expiresAt" className="bg-zinc-950 border-zinc-800 scheme-dark" />
+                    <Label className="text-zinc-300">Data de Expiração (Opcional)</Label>
+                    <Input 
+                        type="date" 
+                        name="expiresAt" 
+                        className="bg-black border-zinc-700 text-white scheme-dark" 
+                    />
                 </div>
-                <Button disabled={isPending} className="w-full bg-[#FFD700] text-black font-bold hover:bg-yellow-300">
-                    {isPending ? <Loader2 className="animate-spin"/> : "Gerar Código"}
+
+                <Button disabled={isPending} className="w-full bg-[#FFD700] text-black font-bold hover:bg-yellow-300 transition-colors">
+                    {isPending ? <Loader2 className="animate-spin mr-2"/> : "Gerar Código"}
                 </Button>
             </form>
         </CardContent>

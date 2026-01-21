@@ -10,7 +10,8 @@ import {
   LogOut, 
   Paintbrush, 
   FileText, 
-  Crown
+  Crown,
+  Ticket
 } from "lucide-react";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -49,6 +50,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   
   // AQUI ESTÁ A MUDANÇA: Apenas OWNER vê a gestão de usuários
   const showUserManager = role === "OWNER";
+  const showCodes = role === "OWNER";
 
   return (
     <div className="flex h-screen bg-zinc-950 text-zinc-100 font-sans">
@@ -121,16 +123,29 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
 
           {/* --- ADMINISTRAÇÃO DO SISTEMA (SÓ OWNER) --- */}
-          {showUserManager && (
+          {(showUserManager || showCodes) && (
             <>
-              <div className="mt-6 border-t border-zinc-800 pt-4">
+              <div className="text-xs font-bold text-zinc-500 uppercase px-4 mt-6 mb-2">Administração</div>
+              
+              {showUserManager && (
                  <Link 
                    href="/dashboard/users" 
-                   className="flex items-center gap-3 p-2 hover:bg-zinc-800 rounded-lg text-white hover:text-[#FFD700] transition-colors"
+                   className="flex items-center gap-3 p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-all"
                  >
-                    <Users size={18} /> Usuários & Permissões
+                    <Users size={18} /> 
+                    <span className="font-medium">Usuários</span>
                  </Link>
-              </div>
+              )}
+
+              {showCodes && (
+                 <Link 
+                   href="/dashboard/codigos" 
+                   className="flex items-center gap-3 p-2.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-[#FFD700] transition-all"
+                 >
+                    <Ticket size={18} /> 
+                    <span className="font-medium">Códigos & Presentes</span>
+                 </Link>
+              )}
             </>
           )}
 
