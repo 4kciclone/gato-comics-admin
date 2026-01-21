@@ -8,7 +8,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import JSZip from "jszip";
 import { ChapterWorkStatus } from "@prisma/client";
 
-// Configuração R2 (Cloudflare)
+// Configuração R2
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT,
@@ -46,15 +46,32 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
     return { error: "Dados inválidos ou arquivo faltando." };
   }
 
+  // --- NOVA VERIFICAÇÃO DE DUPLICIDADE ---
+  const slug = `capitulo-${number}`;
+  const existingChapter = await prisma.chapter.findFirst({
+    where: {
+      workId,
+      OR: [
+        { order: number }, // Verifica pelo número
+        { slug: slug }     // Verifica pelo slug
+      ]
+    }
+  });
+
+  if (existingChapter) {
+    return { 
+      error: `O Capítulo ${number} já existe nesta obra! Vá para a lista de capítulos e clique em 'Editar' para substituir as imagens.` 
+    };
+  }
+  // ---------------------------------------
+
   try {
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
     const imagesToUpload: { name: string; buffer: Buffer }[] = [];
 
-    // Extrair imagens do ZIP
     for (const [filename, fileData] of Object.entries(zip.files)) {
       if (!fileData.dir && !filename.startsWith("__MACOSX") && !filename.includes(".DS_Store")) {
-        // Filtra apenas imagens
         if (filename.match(/\.(jpg|jpeg|png|webp)$/i)) {
             const content = await fileData.async("nodebuffer");
             imagesToUpload.push({ name: filename, buffer: content });
@@ -62,7 +79,6 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
       }
     }
 
-    // Ordenação Numérica Inteligente (1.jpg, 2.jpg, 10.jpg)
     imagesToUpload.sort((a, b) => 
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     );
@@ -72,7 +88,6 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
     const uploadedUrls: string[] = [];
     const timestamp = Date.now();
 
-    // Upload para o R2
     for (const img of imagesToUpload) {
       const ext = img.name.split('.').pop()?.toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
@@ -89,13 +104,12 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
       uploadedUrls.push(`${process.env.R2_PUBLIC_URL}/${key}`);
     }
 
-    // Salvar no Banco
     await prisma.chapter.create({
       data: {
         workId,
         title,
         order: number,
-        slug: `capitulo-${number}`,
+        slug, // Usamos o slug verificado acima
         images: uploadedUrls,
         pricePremium,
         priceLite,
@@ -113,9 +127,7 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
   redirect(`/dashboard/obras/${workId}`);
 }
 
-/**
- * 2. EDITAR STATUS DO CAPÍTULO
- */
+// ... (Mantenha as funções updateChapterStatus e updateChapterImages iguais)
 export async function updateChapterStatus(prevState: ChapterState, formData: FormData): Promise<ChapterState> {
     const session = await auth();
     if (!session || !["OWNER", "ADMIN", "UPLOADER"].includes(session.user.role)) {
@@ -138,10 +150,6 @@ export async function updateChapterStatus(prevState: ChapterState, formData: For
     }
 }
 
-/**
- * 3. ATUALIZAÇÃO QUENTE (HOT SWAP) DE IMAGENS
- * Substitui as imagens mantendo o ID e as compras do capítulo
- */
 export async function updateChapterImages(prevState: ChapterState, formData: FormData): Promise<ChapterState> {
   const session = await auth();
   if (!session || !["OWNER", "ADMIN", "UPLOADER"].includes(session.user.role)) {
@@ -164,10 +172,8 @@ export async function updateChapterImages(prevState: ChapterState, formData: For
 
     for (const [filename, fileData] of Object.entries(zip.files)) {
       if (!fileData.dir && !filename.startsWith("__MACOSX") && !filename.includes(".DS_Store")) {
-        if (filename.match(/\.(jpg|jpeg|png|webp)$/i)) {
-            const content = await fileData.async("nodebuffer");
-            imagesToUpload.push({ name: filename, buffer: content });
-        }
+        const content = await fileData.async("nodebuffer");
+        imagesToUpload.push({ name: filename, buffer: content });
       }
     }
 
@@ -184,7 +190,6 @@ export async function updateChapterImages(prevState: ChapterState, formData: For
       const ext = img.name.split('.').pop()?.toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       
-      // Adicionamos 'v2' ou timestamp no path para evitar cache do navegador/CDN
       const key = `chapters/${workId}/${chapterId}/${timestamp}-${img.name}`;
 
       await s3.send(new PutObjectCommand({
@@ -197,7 +202,6 @@ export async function updateChapterImages(prevState: ChapterState, formData: For
       uploadedUrls.push(`${process.env.R2_PUBLIC_URL}/${key}`);
     }
 
-    // Atualiza APENAS as imagens
     await prisma.chapter.update({
       where: { id: chapterId },
       data: {
