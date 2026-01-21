@@ -8,7 +8,7 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import JSZip from "jszip";
 import { ChapterWorkStatus } from "@prisma/client";
 
-// Configuração R2
+// Configuração R2 (Cloudflare)
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT,
@@ -51,8 +51,10 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
     const zip = await JSZip.loadAsync(arrayBuffer);
     const imagesToUpload: { name: string; buffer: Buffer }[] = [];
 
+    // Extrair imagens do ZIP
     for (const [filename, fileData] of Object.entries(zip.files)) {
       if (!fileData.dir && !filename.startsWith("__MACOSX") && !filename.includes(".DS_Store")) {
+        // Filtra apenas imagens
         if (filename.match(/\.(jpg|jpeg|png|webp)$/i)) {
             const content = await fileData.async("nodebuffer");
             imagesToUpload.push({ name: filename, buffer: content });
@@ -60,6 +62,7 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
       }
     }
 
+    // Ordenação Numérica Inteligente (1.jpg, 2.jpg, 10.jpg)
     imagesToUpload.sort((a, b) => 
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     );
@@ -69,20 +72,24 @@ export async function createChapter(prevState: ChapterState, formData: FormData)
     const uploadedUrls: string[] = [];
     const timestamp = Date.now();
 
+    // Upload para o R2
     for (const img of imagesToUpload) {
-      const ext = img.name.split('.').pop();
+      const ext = img.name.split('.').pop()?.toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      
       const key = `chapters/${workId}/${number}/${timestamp}-${img.name}`;
 
       await s3.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: key,
         Body: img.buffer,
-        ContentType: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+        ContentType: contentType,
       }));
 
       uploadedUrls.push(`${process.env.R2_PUBLIC_URL}/${key}`);
     }
 
+    // Salvar no Banco
     await prisma.chapter.create({
       data: {
         workId,
@@ -133,7 +140,7 @@ export async function updateChapterStatus(prevState: ChapterState, formData: For
 
 /**
  * 3. ATUALIZAÇÃO QUENTE (HOT SWAP) DE IMAGENS
- * (Esta era a função que estava faltando)
+ * Substitui as imagens mantendo o ID e as compras do capítulo
  */
 export async function updateChapterImages(prevState: ChapterState, formData: FormData): Promise<ChapterState> {
   const session = await auth();
@@ -157,8 +164,10 @@ export async function updateChapterImages(prevState: ChapterState, formData: For
 
     for (const [filename, fileData] of Object.entries(zip.files)) {
       if (!fileData.dir && !filename.startsWith("__MACOSX") && !filename.includes(".DS_Store")) {
-        const content = await fileData.async("nodebuffer");
-        imagesToUpload.push({ name: filename, buffer: content });
+        if (filename.match(/\.(jpg|jpeg|png|webp)$/i)) {
+            const content = await fileData.async("nodebuffer");
+            imagesToUpload.push({ name: filename, buffer: content });
+        }
       }
     }
 
@@ -172,19 +181,23 @@ export async function updateChapterImages(prevState: ChapterState, formData: For
     const timestamp = Date.now();
 
     for (const img of imagesToUpload) {
-      const extension = img.name.split('.').pop() || "jpg";
+      const ext = img.name.split('.').pop()?.toLowerCase();
+      const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      
+      // Adicionamos 'v2' ou timestamp no path para evitar cache do navegador/CDN
       const key = `chapters/${workId}/${chapterId}/${timestamp}-${img.name}`;
 
       await s3.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: key,
         Body: img.buffer,
-        ContentType: `image/${extension === 'png' ? 'png' : 'jpeg'}`,
+        ContentType: contentType,
       }));
 
       uploadedUrls.push(`${process.env.R2_PUBLIC_URL}/${key}`);
     }
 
+    // Atualiza APENAS as imagens
     await prisma.chapter.update({
       where: { id: chapterId },
       data: {
