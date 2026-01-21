@@ -151,6 +151,9 @@ model User {
   posts               Post[]
   likes               Like[]
   workLikes           WorkLike[]
+
+  promoRedemptions    PromoCodeRedemption[]
+
   
   // Social
   following           Follow[]       @relation("Following")
@@ -518,4 +521,35 @@ model ActivityLog {
 
   @@index([createdAt])
   @@map("activity_logs")
+}
+
+model PromoCode {
+  id          String   @id @default(cuid())
+  code        String   @unique // O código ex: "GATO2026"
+  type        CurrencyType // PREMIUM ou LITE
+  amount      Int      // Quantidade
+  maxUses     Int?     // Se null, é infinito
+  usedCount   Int      @default(0)
+  expiresAt   DateTime? // Se null, nunca expira
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  
+  // Relação para saber quem usou
+  redemptions PromoCodeRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoCodeRedemption {
+  id          String   @id @default(cuid())
+  codeId      String
+  userId      String
+  redeemedAt  DateTime @default(now())
+
+  promoCode   PromoCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([codeId, userId]) // Garante que o usuário só usa 1 vez
+  @@map("promo_code_redemptions")
 }
