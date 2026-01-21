@@ -57,7 +57,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* SIDEBAR */}
       <aside className="w-64 border-r border-zinc-800 bg-zinc-900 flex flex-col fixed h-full z-10">
         <div className="h-16 flex items-center px-6 border-b border-zinc-800 text-[#FFD700] font-bold tracking-widest">
-          GATO STAFF
+          ADMINISTRAÇÃO
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
