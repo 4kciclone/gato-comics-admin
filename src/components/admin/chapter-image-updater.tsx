@@ -1,21 +1,78 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { updateChapterImages } from "@/actions/chapters";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, RefreshCw, AlertTriangle, FileArchive } from "lucide-react";
+import { Loader2, RefreshCw, FileArchive } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export function ChapterImageUpdater({ workId, chapterId }: { workId: string, chapterId: string }) {
-  const [state, formAction, isPending] = useActionState(updateChapterImages, null);
+  const router = useRouter();
+  
   const [fileName, setFileName] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
-  // Feedback visual via Toast
-  if (state?.error) toast.error(state.error);
-  if (state?.success) toast.success(state.success);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsPending(true);
+    setUploadProgress(0);
+
+    const formData = new FormData(e.currentTarget);
+
+    try {
+      // Simular progresso durante o upload
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+
+      const response = await fetch("/api/chapters/update-images", {
+        method: "POST",
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Erro ao atualizar imagens");
+        setIsPending(false);
+        setUploadProgress(0);
+        return;
+      }
+
+      // Sucesso
+      toast.success(data.message || "Páginas substituídas com sucesso!");
+      setFileName(null);
+      
+      // Resetar form
+      e.currentTarget.reset();
+      
+      // Aguardar 1s e recarregar a página
+      setTimeout(() => {
+        router.refresh();
+        setIsPending(false);
+        setUploadProgress(0);
+      }, 1000);
+      
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao enviar os dados. Tente novamente.");
+      setIsPending(false);
+      setUploadProgress(0);
+    }
+  };
 
   return (
     <Card className="border-orange-900/50 bg-orange-950/10">
@@ -30,7 +87,7 @@ export function ChapterImageUpdater({ workId, chapterId }: { workId: string, cha
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input type="hidden" name="workId" value={workId} />
           <input type="hidden" name="chapterId" value={chapterId} />
 
@@ -44,6 +101,7 @@ export function ChapterImageUpdater({ workId, chapterId }: { workId: string, cha
                   accept=".zip"
                   className="bg-[#050505] border-zinc-700 text-white pl-10"
                   onChange={(e) => setFileName(e.target.files?.[0]?.name || null)}
+                  disabled={isPending}
                   required 
                 />
                 <FileArchive className="w-4 h-4 text-zinc-500 absolute left-3 top-3" />
@@ -56,7 +114,22 @@ export function ChapterImageUpdater({ workId, chapterId }: { workId: string, cha
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Substituir Agora"}
               </Button>
             </div>
-            {fileName && <p className="text-xs text-orange-400 mt-1">Selecionado: {fileName}</p>}
+            {fileName && !isPending && (
+              <p className="text-xs text-orange-400 mt-1">Selecionado: {fileName}</p>
+            )}
+            {isPending && uploadProgress > 0 && (
+              <div className="space-y-1 mt-2">
+                <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="bg-orange-500 h-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-orange-400">
+                  {uploadProgress < 100 ? "Processando e enviando..." : "Finalizando..."}
+                </p>
+              </div>
+            )}
           </div>
         </form>
       </CardContent>
