@@ -9,16 +9,16 @@ const nextConfig: NextConfig = {
         "gatocomics.local:3000", 
         "localhost:3000"
       ],
-      // Limite do corpo da requisição (500MB em bytes)
-      // Essencial para upload de ZIPs grandes
-      bodySizeLimit: 524288000, 
+      // Limite menor para Server Actions (não será mais usado para uploads)
+      bodySizeLimit: 10485760, // 10MB
     },
   },
+  
   images: {
     remotePatterns: [
       { hostname: "*" }
     ]
-  }
+  },
 };
 
 export default nextConfig;
