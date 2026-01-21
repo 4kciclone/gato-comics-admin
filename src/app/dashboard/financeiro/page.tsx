@@ -1,27 +1,14 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Users, CreditCard, DollarSign, Crown } from "lucide-react";
 import { FinancialCharts } from "@/components/admin/finance/financial-charts";
-import { ExportButtons } from "./export-buttons"; // Componente que já criamos antes
+import { ExportButtons } from "./export-buttons";
 import { subDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-
-// --- CONSTANTES DE NEGÓCIO ---
-// Como a tabela Transaction salva em "Patinhas" e não em "Reais",
-// definimos aqui a taxa média de conversão para relatórios.
-// Ex: Se 100 patinhas custam R$ 4,99, então 1 patinha = R$ 0,0499
-const CONVERSION_RATE = 0.0499; 
-
-// Valores fixos das assinaturas (usado para calcular MRR)
-const SUBSCRIPTION_PRICES: Record<string, number> = {
-  BRONZE: 6.99,
-  SILVER: 14.99,
-  GOLD: 25.99,
-  DIAMOND: 35.99
-};
+import { COIN_PACKS, SUBSCRIPTION_PLANS } from "@/lib/shop-config"; // Importamos os preços reais
 
 const formatBRL = (value: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -32,30 +19,22 @@ export default async function FinanceiroPage() {
     redirect("/dashboard");
   }
 
-  // =================================================================
-  // 1. EXTRAÇÃO DE DADOS (Queries Paralelas)
-  // =================================================================
   const today = new Date();
   const thirtyDaysAgo = subDays(today, 30);
 
+  // 1. BUSCAR DADOS BRUTOS
   const [deposits, subscribers, works, totalUsers] = await Promise.all([
-    // A. Transações de Venda (Últimos 30 dias)
+    // Todas as compras de pacotes (DEPOSIT)
     prisma.transaction.findMany({
-      where: { 
-        type: "DEPOSIT", 
-        currency: "PREMIUM",
-        createdAt: { gte: thirtyDaysAgo }
-      },
-      select: { amount: true, createdAt: true }
+      where: { type: "DEPOSIT", currency: "PREMIUM", createdAt: { gte: thirtyDaysAgo } },
+      select: { amount: true, createdAt: true, description: true }
     }),
-
-    // B. Assinantes Ativos
+    // Assinantes
     prisma.user.findMany({
       where: { subscriptionTier: { not: null } },
       select: { subscriptionTier: true }
     }),
-
-    // C. Dados das Obras (Para ranking)
+    // Obras
     prisma.work.findMany({
       select: {
         title: true,
@@ -63,101 +42,117 @@ export default async function FinanceiroPage() {
           select: {
             pricePremium: true,
             unlocks: { 
-              where: { type: "PERMANENT" }, // Apenas vendas reais contam para receita
+              where: { type: "PERMANENT" }, 
               select: { id: true } 
             }
           }
         }
       }
     }),
-
-    // D. Total de Usuários (Para ARPU)
     prisma.user.count()
   ]);
 
   // =================================================================
-  // 2. PROCESSAMENTO E CÁLCULOS (Business Logic)
+  // 2. CÁLCULO DO VALOR REAL DA PATINHA (Weighted Average)
   // =================================================================
+  
+  let totalRevenueSalesBRL = 0;
+  let totalCoinsSold = 0;
 
-  // --- Receita de Vendas Avulsas (Patinhas) ---
-  const revenuePaws = deposits.reduce((acc, t) => acc + t.amount, 0);
-  const revenueSalesBRL = revenuePaws * CONVERSION_RATE;
+  // Analisa cada transação para descobrir quanto dinheiro real entrou
+  deposits.forEach(tx => {
+    // Tenta achar qual pacote foi comprado comparando a quantidade de moedas
+    // (Isso é uma estimativa segura baseada na sua configuração)
+    const pack = Object.values(COIN_PACKS).find(p => p.premium === tx.amount);
+    
+    if (pack) {
+        totalRevenueSalesBRL += pack.price / 100; // Preço vem em centavos, dividimos por 100
+    } else {
+        // Se for um valor manual ou bonus, usamos uma média base de R$ 0,50 por 10 un (0.05)
+        totalRevenueSalesBRL += tx.amount * 0.05; 
+    }
+    totalCoinsSold += tx.amount;
+  });
 
-  // --- MRR (Monthly Recurring Revenue) ---
-  // Soma do valor das assinaturas ativas
+  // VALOR MÉDIO DA MOEDA NO SISTEMA
+  // Se vendeu 0, evita divisão por zero
+  const averageCoinValue = totalCoinsSold > 0 ? (totalRevenueSalesBRL / totalCoinsSold) : 0.05;
+
+  // =================================================================
+  // 3. CÁLCULO DE ASSINATURAS (MRR)
+  // =================================================================
   const mrr = subscribers.reduce((acc, user) => {
-    const tier = user.subscriptionTier as string;
-    return acc + (SUBSCRIPTION_PRICES[tier] || 0);
+    const planKey = `sub_${user.subscriptionTier?.toLowerCase()}`;
+    // @ts-ignore
+    const plan = SUBSCRIPTION_PLANS[planKey];
+    return acc + (plan ? plan.price / 100 : 0);
   }, 0);
 
-  // --- Receita Total Estimada (Mês) ---
-  const totalRevenueMonth = revenueSalesBRL + mrr;
+  // =================================================================
+  // 4. PREPARAÇÃO DOS DADOS PARA OS GRÁFICOS
+  // =================================================================
 
-  // --- ARPU (Average Revenue Per User) ---
+  const totalRevenueMonth = totalRevenueSalesBRL + mrr;
   const arpu = totalUsers > 0 ? totalRevenueMonth / totalUsers : 0;
 
-  // --- Dados para Gráfico de Área (Evolução Diária) ---
+  // Gráfico de Área (Evolução)
   const revenueMap = new Map<string, number>();
-  
-  // Agrupa transações por dia
   deposits.forEach(t => {
     const dateKey = format(t.createdAt, 'dd/MM', { locale: ptBR });
-    const valueBRL = t.amount * CONVERSION_RATE;
+    // Usamos o valor médio calculado para plotar o gráfico
+    const valueBRL = t.amount * averageCoinValue; 
     revenueMap.set(dateKey, (revenueMap.get(dateKey) || 0) + valueBRL);
   });
   
-  // Preenche dias vazios com 0 para o gráfico não quebrar
   const chartData = Array.from({ length: 30 }).map((_, i) => {
-    const d = subDays(today, 29 - i); // Do passado para hoje
+    const d = subDays(today, 29 - i);
     const key = format(d, 'dd/MM', { locale: ptBR });
-    // Adiciona MRR diário pro-rata (opcional, aqui mostramos apenas vendas diretas no gráfico diário)
     return { date: key, value: revenueMap.get(key) || 0 };
   });
 
-  // --- Dados para Gráfico de Barras (Top Obras) ---
+  // Ranking de Obras (Usando o valor médio calculado)
   const worksRanking = works.map(w => {
     let revenue = 0;
     w.chapters.forEach(c => {
-        // Receita = (Preço em Patinhas * Unlocks) * Taxa de Conversão
-        revenue += (c.unlocks.length * c.pricePremium) * CONVERSION_RATE;
+        // Quantidade de Vendas * Preço do Cap * Valor Médio da Moeda
+        revenue += (c.unlocks.length * c.pricePremium) * averageCoinValue;
     });
     return { name: w.title, revenue };
   })
-  .sort((a, b) => b.revenue - a.revenue) // Ordena maior para menor
-  .slice(0, 5); // Pega top 5
+  .sort((a, b) => b.revenue - a.revenue)
+  .slice(0, 5);
 
-  // --- Dados para Gráfico de Pizza (Fontes) ---
   const revenueBySource = [
     { name: 'Assinaturas (MRR)', value: Number(mrr.toFixed(2)) },
-    { name: 'Vendas Avulsas', value: Number(revenueSalesBRL.toFixed(2)) }
+    { name: 'Vendas Avulsas', value: Number(totalRevenueSalesBRL.toFixed(2)) }
   ];
 
   return (
     <div className="space-y-8 pb-20">
       
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tight">Painel Financeiro</h1>
-          <p className="text-zinc-400">Inteligência de mercado e fluxo de caixa.</p>
+          <p className="text-zinc-400">
+            Cotação média atual: <span className="text-green-400 font-mono font-bold">{formatBRL(averageCoinValue)}</span> / patinha
+          </p>
         </div>
         <ExportButtons />
       </div>
 
-      {/* KPI CARDS - O Resumo Executivo */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard 
             title="Receita Mensal (MRR)" 
             value={formatBRL(mrr)} 
             icon={Crown} 
-            desc="Recorrente de assinaturas ativas"
+            desc="Assinaturas ativas"
             color="text-[#FFD700]"
         />
         <KpiCard 
             title="Vendas Avulsas (30d)" 
-            value={formatBRL(revenueSalesBRL)} 
+            value={formatBRL(totalRevenueSalesBRL)} 
             icon={CreditCard} 
-            desc={`~ ${revenuePaws.toLocaleString()} patinhas vendidas`}
+            desc={`~ ${totalCoinsSold} patinhas vendidas`}
             color="text-blue-400"
         />
         <KpiCard 
@@ -171,20 +166,15 @@ export default async function FinanceiroPage() {
             title="Receita Total (Est.)" 
             value={formatBRL(totalRevenueMonth)} 
             icon={TrendingUp} 
-            desc="Soma de MRR + Vendas"
+            desc="Faturamento bruto estimado"
             color="text-green-400"
         />
       </div>
 
-      {/* ÁREA DE ANÁLISE VISUAL */}
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-zinc-900 border border-zinc-800 mb-6">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#FFD700] data-[state=active]:text-black">
-                Visão Geral
-            </TabsTrigger>
-            <TabsTrigger value="details">
-                Relatórios Detalhados
-            </TabsTrigger>
+            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+            <TabsTrigger value="details">Relatórios Detalhados</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="animate-in fade-in-50">
@@ -199,7 +189,7 @@ export default async function FinanceiroPage() {
             <Card className="bg-[#111] border-zinc-800">
                 <CardContent className="py-10 text-center text-zinc-500">
                     <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    <p>Use os botões de exportação acima para baixar os dados brutos para contabilidade.</p>
+                    <p>Use os botões de exportação acima para baixar os dados brutos.</p>
                 </CardContent>
             </Card>
         </TabsContent>
@@ -208,7 +198,6 @@ export default async function FinanceiroPage() {
   );
 }
 
-// Componente de Card Simples (Pequeno e Reutilizável)
 function KpiCard({ title, value, icon: Icon, desc, color }: any) {
     return (
         <Card className="bg-[#111] border-zinc-800 hover:border-zinc-700 transition-colors">
