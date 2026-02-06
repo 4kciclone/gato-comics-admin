@@ -114,9 +114,9 @@ model User {
   password                    String?
   role                        UserRole  @default(USER)
 
-  location             String?        // Cidade/Estado
-  privacySettings      String         @default("PUBLIC") // PUBLIC, FOLLOWERS, PRIVATE
-  lastNicknameChange   DateTime?      // Para controlar os 90 dias
+  location             String?        
+  privacySettings      String         @default("PUBLIC") 
+  lastNicknameChange   DateTime?      
   bio                  String?        @db.Text
 
   featuredWorks        Work[]         @relation("UserFeaturedWorks")
@@ -154,7 +154,6 @@ model User {
 
   promoRedemptions    PromoCodeRedemption[]
 
-  
   // Social
   following           Follow[]       @relation("Following")
   followers           Follow[]       @relation("Followers")
@@ -234,6 +233,8 @@ model Work {
   genres         String[]
   isAdult        Boolean  @default(false)
   isHidden       Boolean  @default(false)
+
+  viewsCount     Int      @default(0)
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -293,7 +294,7 @@ model WorkStaff {
   id     String   @id @default(cuid())
   workId String
   userId String
-  role   UserRole // EDITOR, TRANSLATOR ou QC
+  role   UserRole 
 
   work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -302,14 +303,20 @@ model WorkStaff {
 }
 
 model Unlock {
-  id        String     @id @default(cuid())
-  userId    String
-  chapterId String
-  type      UnlockType
-  expiresAt DateTime?
-  createdAt DateTime   @default(now())
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chapter   Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  userId       String
+  chapterId    String
+  type         UnlockType
+  
+  // --- CAMPOS NOVOS ---
+  currencyUsed CurrencyType? // Salva se foi PREMIUM ou LITE
+  amountSpent  Int?          // Salva quanto custou no momento da compra
+  // --------------------
+
+  expiresAt    DateTime?
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter      Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
   @@unique([userId, chapterId])
   @@map("unlocks")
@@ -525,17 +532,16 @@ model ActivityLog {
 
 model PromoCode {
   id          String   @id @default(cuid())
-  code        String   @unique // O código ex: "GATO2026"
-  type        CurrencyType // PREMIUM ou LITE
-  amount      Int      // Quantidade
-  maxUses     Int?     // Se null, é infinito
+  code        String   @unique 
+  type        CurrencyType 
+  amount      Int      
+  maxUses     Int?     
   usedCount   Int      @default(0)
-  expiresAt   DateTime? // Se null, nunca expira
+  expiresAt   DateTime? 
   isActive    Boolean  @default(true)
   
   createdAt   DateTime @default(now())
   
-  // Relação para saber quem usou
   redemptions PromoCodeRedemption[]
 
   @@map("promo_codes")
@@ -550,6 +556,6 @@ model PromoCodeRedemption {
   promoCode   PromoCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([codeId, userId]) // Garante que o usuário só usa 1 vez
+  @@unique([codeId, userId]) 
   @@map("promo_code_redemptions")
 }

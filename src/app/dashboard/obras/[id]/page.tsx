@@ -5,17 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkStaffManager } from "@/components/admin/work-staff-manager";
-import { ChapterRowActions } from "@/components/admin/chapter-row-actions"; // <--- Importado aqui
+import { ChapterRowActions } from "@/components/admin/chapter-row-actions";
+import { DeleteWorkButton } from "@/components/admin/delete-work-button"; // <--- Importado
 import { Plus, Users, FileText, ArrowLeft, Coins } from "lucide-react";
 
-// Mapa de Tradução e Cores para os Status
+
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   DRAFT: { label: "Rascunho", color: "bg-zinc-800 text-zinc-500 border-zinc-700" },
   TRANSLATING: { label: "Traduzindo", color: "bg-blue-950/40 text-blue-400 border-blue-900" },
   EDITING: { label: "Editando", color: "bg-purple-950/40 text-purple-400 border-purple-900" },
   QC_PENDING: { label: "Análise QC", color: "bg-yellow-950/40 text-yellow-400 border-yellow-900" },
   QC_REJECTED: { label: "Rejeitado", color: "bg-red-950/40 text-red-400 border-red-900" },
-  READY: { label: "Pronto", color: "bg-cyan-950/40 text-cyan-400 border-cyan-800 animate-pulse" }, // Destaque para pronto
+  READY: { label: "Pronto", color: "bg-cyan-950/40 text-cyan-400 border-cyan-800 animate-pulse" },
   PUBLISHED: { label: "Publicado", color: "bg-green-950/40 text-green-400 border-green-900" },
 };
 
@@ -36,20 +37,26 @@ export default async function WorkDetailsPage({ params }: { params: Promise<{ id
     <div className="space-y-8 max-w-7xl mx-auto pb-20">
       
       {/* CABEÇALHO DA OBRA */}
-      <div className="flex flex-col md:flex-row gap-8 items-start bg-[#111] p-6 rounded-xl border border-zinc-800">
+      <div className="flex flex-col md:flex-row gap-8 items-start bg-[#111] p-6 rounded-xl border border-zinc-800 relative">
         <div className="w-40 aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden shrink-0 border border-zinc-700 shadow-xl">
            {/* eslint-disable-next-line @next/next/no-img-element */}
            <img src={work.coverUrl} alt={work.title} className="w-full h-full object-cover" />
         </div>
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 space-y-4 w-full">
            <div className="space-y-2">
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-3 w-full">
                 <Link href="/dashboard/obras">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white"><ArrowLeft className="w-5 h-5" /></Button>
                 </Link>
                 <Badge variant="outline" className="border-zinc-700 text-zinc-400">{work.ageRating.replace("_", " ")}</Badge>
                 {work.isHidden ? <Badge variant="destructive">Oculto</Badge> : <Badge className="bg-green-600">Visível</Badge>}
+                
+                {/* BOTÃO DE DELETAR OBRA (Alinhado à direita) */}
+                <div className="ml-auto">
+                    <DeleteWorkButton workId={work.id} workTitle={work.title} />
+                </div>
              </div>
+             
              <h1 className="text-4xl font-black text-white tracking-tight">{work.title}</h1>
              <p className="text-zinc-400 max-w-3xl leading-relaxed text-sm">{work.synopsis}</p>
            </div>
@@ -124,7 +131,6 @@ export default async function WorkDetailsPage({ params }: { params: Promise<{ id
                                 )}
                             </td>
                             
-                            {/* AÇÕES (Botão de Publicar aparece aqui via componente) */}
                             <td className="px-4 py-3 text-right">
                                 <ChapterRowActions 
                                     workId={work.id} 
@@ -141,7 +147,7 @@ export default async function WorkDetailsPage({ params }: { params: Promise<{ id
            </div>
         </div>
 
-        {/* COLUNA LATERAL: EQUIPE */}
+        {/* COLUNA LATERAL: EQUIPE (Mantenha igual) */}
         <div className="lg:col-span-1 space-y-6">
            <Card className="bg-[#111] border-zinc-800">
              <CardHeader>
