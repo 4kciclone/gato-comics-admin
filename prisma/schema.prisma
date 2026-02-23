@@ -101,6 +101,16 @@ enum AgeRating {
   DEZOITO_ANOS
 }
 
+// Novo Enum para Rastrear Origem das Patinhas Lite
+enum LiteSource {
+  AD_WATCH
+  COIN_PACK
+  SUBSCRIPTION
+  PROMO_CODE
+  ADMIN_GIFT
+  OTHER
+}
+
 // --------------------------------------------------------
 // MODELOS DE USUÁRIO & ECONOMIA
 // --------------------------------------------------------
@@ -113,6 +123,7 @@ model User {
   image                       String?
   password                    String?
   role                        UserRole  @default(USER)
+  lastAvatarUpdate            DateTime? // Controle de troca de foto (30 dias)
 
   location             String?        
   privacySettings      String         @default("PUBLIC") 
@@ -308,13 +319,14 @@ model Unlock {
   chapterId    String
   type         UnlockType
   
-  // --- CAMPOS NOVOS ---
-  currencyUsed CurrencyType? // Salva se foi PREMIUM ou LITE
-  amountSpent  Int?          // Salva quanto custou no momento da compra
-  // --------------------
+  currencyUsed CurrencyType?
+  amountSpent  Int?         
 
   expiresAt    DateTime?
   createdAt    DateTime     @default(now())
+  // O default(now) aqui é CRÍTICO para não quebrar dados existentes na migração
+  updatedAt    DateTime     @default(now()) @updatedAt 
+
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   chapter      Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
@@ -507,12 +519,18 @@ model WorkLike {
 }
 
 model LiteCoinBatch {
-  id        String   @id @default(cuid())
-  userId    String
-  amount    Int
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  userId        String
+  amount        Int
+  createdAt     DateTime    @default(now())
+  expiresAt     DateTime
+  
+  // --- CAMPOS DE RASTREIO ---
+  source        LiteSource? @default(OTHER)
+  sourceDetails String?
+  // --------------------------
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@map("lite_coin_batches")
@@ -558,4 +576,15 @@ model PromoCodeRedemption {
 
   @@unique([codeId, userId]) 
   @@map("promo_code_redemptions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("password_reset_tokens")
 }
