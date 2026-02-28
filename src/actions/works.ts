@@ -118,3 +118,83 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
   revalidatePath("/works"); // Atualiza a lista no painel
   redirect("/works"); // Manda o usuário para a lista
 }
+
+/**
+ * Server Action para editar uma obra existente.
+ */
+export async function editWork(workId: string, prevState: WorkState, formData: FormData): Promise<WorkState> {
+  const session = await auth();
+  const role = session?.user?.role;
+
+  // 1. Verificação de Permissão (RBAC)
+  if (!["OWNER", "ADMIN", "UPLOADER"].includes(role || "")) {
+    return { error: "Você não tem permissão para editar obras." };
+  }
+
+  // 2. Extração dos Dados do Formulário
+  const title = formData.get("title") as string;
+  const synopsis = formData.get("synopsis") as string;
+  const author = formData.get("author") as string;
+  const studio = formData.get("studio") as string;
+  const genresRaw = formData.get("genres") as string;
+
+  const ageRating = formData.get("ageRating") as AgeRating;
+  const coverFile = formData.get("coverImage") as File | null;
+
+  // 3. Validação Básica
+  if (!title || !author) {
+    return { error: "Preencha os campos obrigatórios (Título e Autor)." };
+  }
+
+  try {
+    const genres = genresRaw ? genresRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+    // Obter dados que possivelmente já existem
+    const existingWork = await prisma.work.findUnique({ where: { id: workId } });
+
+    if (!existingWork) {
+      return { error: "A obra que você tentou editar não existe." };
+    }
+
+    let coverUrl = existingWork.coverUrl;
+
+    // 4. Upload da Capa (Apenas se provida nova capa)
+    if (coverFile && coverFile.size > 0 && coverFile.name !== 'undefined') {
+      const fileBuffer = Buffer.from(await coverFile.arrayBuffer());
+      const fileName = `covers/${Date.now()}-${coverFile.name.replace(/\s+/g, '-').toLowerCase()}`;
+
+      await s3.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileName,
+        Body: fileBuffer,
+        ContentType: coverFile.type,
+        ACL: 'public-read',
+      }));
+
+      coverUrl = `${process.env.R2_PUBLIC_URL}/${fileName}`;
+    }
+
+    // 5. Salvar no Banco de Dados
+    await prisma.work.update({
+      where: { id: workId },
+      data: {
+        title,
+        synopsis,
+        author,
+        studio,
+        genres,
+        ageRating,
+        coverUrl, // Substitui a nova ou mantem a velha
+        isAdult: ageRating === "DEZOITO_ANOS",
+      }
+    });
+
+  } catch (error) {
+    console.error("Erro ao editar obra:", error);
+    return { error: "Erro interno ao processar a edição. Verifique os logs." };
+  }
+
+  revalidatePath("/works");
+  revalidatePath(`/works/${workId}`);
+  redirect(`/works/${workId}`);
+}

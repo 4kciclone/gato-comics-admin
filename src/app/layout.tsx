@@ -20,26 +20,37 @@ export const metadata: Metadata = {
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { TopBanner } from "@/components/layout/TopBanner";
+import { auth } from "@/auth";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SidebarProvider>
-          <AppSidebar />
-          <div className="flex flex-col flex-1 w-full min-h-screen">
-            <TopBanner />
-            <main className="flex-1 p-6 md:p-8">
-              {children}
-            </main>
-          </div>
-        </SidebarProvider>
+        {session?.user ? (
+          <SidebarProvider>
+            <AppSidebar />
+            <div className="flex flex-col flex-1 w-full min-h-screen">
+              <TopBanner />
+              <main className="flex-1 p-6 md:p-8">
+                {children}
+              </main>
+            </div>
+          </SidebarProvider>
+        ) : (
+          <main className="w-full min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
+            <div className="absolute top-0 right-0 p-8 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[150px] pointer-events-none mix-blend-screen opacity-50"></div>
+            <div className="absolute bottom-0 left-0 p-8 w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen opacity-50"></div>
+            {children}
+          </main>
+        )}
       </body>
     </html>
   );

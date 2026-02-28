@@ -74,3 +74,47 @@ export async function createChapter(formData: FormData) {
     return { success: false, error: "Erro interno ao criar capítulo." };
   }
 }
+
+export async function editChapter(chapterId: string, formData: FormData) {
+  const session = await auth();
+  if (!session || !["OWNER", "ADMIN", "UPLOADER"].includes(session.user.role)) {
+    return { success: false, error: "Sem permissão." };
+  }
+
+  try {
+    const title = formData.get("title") as string;
+    const order = parseInt(formData.get("order") as string);
+    const isFree = formData.get("isFree") === "true";
+    const publishAt = new Date(formData.get("publishAt") as string);
+
+    // Novas variáveis de preço
+    const pricePremiumRaw = formData.get("pricePremium");
+    const priceLiteRaw = formData.get("priceLite");
+    const pricePremium = pricePremiumRaw ? parseInt(pricePremiumRaw as string) : undefined;
+    const priceLite = priceLiteRaw ? parseInt(priceLiteRaw as string) : undefined;
+
+    if (isNaN(order)) {
+      return { success: false, error: "Ordem inválida." };
+    }
+
+    const chapter = await prisma.chapter.findUnique({ where: { id: chapterId } });
+    if (!chapter) return { success: false, error: "Capítulo não encontrado." };
+
+    await prisma.chapter.update({
+      where: { id: chapterId },
+      data: {
+        title,
+        order,
+        isFree,
+        publishAt,
+        ...(pricePremium !== undefined && { pricePremium }),
+        ...(priceLite !== undefined && { priceLite }),
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { success: false, error: "Erro interno ao atualizar capítulo." };
+  }
+}

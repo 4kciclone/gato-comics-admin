@@ -96,7 +96,9 @@ export default async function WorkDetailPage({
                                 <Settings className="h-5 w-5" />
                                 Informações da Obra
                             </CardTitle>
-                            <Button variant="outline" size="sm">Editar</Button>
+                            <Button variant="outline" size="sm" asChild>
+                                <Link href={`/works/${work.id}/edit`}>Editar</Link>
+                            </Button>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -119,39 +121,6 @@ export default async function WorkDetailPage({
                                     <p className="text-muted-foreground whitespace-pre-wrap">{work.synopsis}</p>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle className="flex items-center gap-2">
-                                <Users className="h-5 w-5" />
-                                Equipe da Obra (Staff)
-                            </CardTitle>
-                            <Button variant="outline" size="sm">Adicionar Membro</Button>
-                        </CardHeader>
-                        <CardContent>
-                            {work.staff.length === 0 ? (
-                                <div className="text-center py-6 text-muted-foreground border-dashed border-2 rounded-md">
-                                    Nenhum membro da staff vinculado a esta obra.
-                                </div>
-                            ) : (
-                                <ul className="divide-y">
-                                    {work.staff.map(s => (
-                                        <li key={s.id} className="py-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={s.user.image || `https://avatar.vercel.sh/${s.user.email}`} alt={s.user.name || "User"} className="h-8 w-8 rounded-full bg-muted" />
-                                                <div>
-                                                    <p className="font-medium text-sm">{s.user.name || s.user.username}</p>
-                                                    <p className="text-xs text-muted-foreground">{s.user.email}</p>
-                                                </div>
-                                            </div>
-                                            <Badge>{s.role}</Badge>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
                         </CardContent>
                     </Card>
                 </div>

@@ -74,7 +74,9 @@ export default async function ChaptersListPage({
                                         <th className="px-4 py-3 font-medium">Título</th>
                                         <th className="px-4 py-3 font-medium">Lançamento (Agendamento)</th>
                                         <th className="px-4 py-3 font-medium">Status no Site</th>
+                                        <th className="px-4 py-3 font-medium text-center">Preços (Lite / Premium)</th>
                                         <th className="px-4 py-3 font-medium">Acesso</th>
+                                        <th className="px-4 py-3 font-medium text-right">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
@@ -102,6 +104,17 @@ export default async function ChaptersListPage({
                                                         </Badge>
                                                     )}
                                                 </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {chapter.isFree ? (
+                                                        <span className="text-muted-foreground">-</span>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center gap-2 text-xs font-mono">
+                                                            <span className="text-secondary">{chapter.priceLite} L</span>
+                                                            <span className="text-muted-foreground">/</span>
+                                                            <span className="text-primary font-bold">{chapter.pricePremium} P</span>
+                                                        </div>
+                                                    )}
+                                                </td>
                                                 <td className="px-4 py-3">
                                                     {chapter.isFree ? (
                                                         <Badge variant="secondary" className="bg-muted/50">Gratuito</Badge>
@@ -110,6 +123,11 @@ export default async function ChaptersListPage({
                                                             <Lock className="h-3 w-3" /> Pago
                                                         </Badge>
                                                     )}
+                                                </td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={`/works/${work.id}/chapters/${chapter.id}/edit`}>Editar</Link>
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         );

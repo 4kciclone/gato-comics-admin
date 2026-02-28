@@ -27,7 +27,7 @@ export const authConfig = {
       if (isApiAuth) return true;
 
       if (isOnLogin) {
-        if (isLoggedIn) return Response.redirect(new URL("/dashboard", nextUrl));
+        if (isLoggedIn) return Response.redirect(new URL("/", nextUrl));
         return true;
       }
 
@@ -54,5 +54,5 @@ export const authConfig = {
       return session;
     },
   },
-  providers: [], 
+  providers: [],
 } satisfies NextAuthConfig;
