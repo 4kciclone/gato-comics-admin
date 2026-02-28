@@ -70,7 +70,6 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[250px] flex items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20 m-4 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('/noise.png')] opacity-20 mix-blend-overlay"></div>
               <span className="text-muted-foreground font-medium z-10 glass px-4 py-2 rounded-full">Gráfico de Arrecadação (Em breve)</span>
             </div>
           </CardContent>
