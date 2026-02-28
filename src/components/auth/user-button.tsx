@@ -63,7 +63,10 @@ export function UserButton({ user }: UserButtonProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     className="cursor-pointer text-red-600 focus:text-red-600"
-                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    onSelect={(e) => {
+                        e.preventDefault();
+                        signOut({ callbackUrl: '/login' });
+                    }}
                 >
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Sair</span>

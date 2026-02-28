@@ -64,11 +64,7 @@ const adminMenu = [
     icon: Store,
     url: "/shop/cosmetics",
   },
-  {
-    title: "Banners Carrossel",
-    icon: ImageIcon,
-    url: "/banners",
-  },
+
   {
     title: "Denúncias (Reports)",
     icon: ShieldAlert,
