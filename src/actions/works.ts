@@ -42,12 +42,12 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
   const author = formData.get("author") as string;
   const studio = formData.get("studio") as string;
   const genresRaw = formData.get("genres") as string;
-  
+
   // Novos campos
   const ageRating = formData.get("ageRating") as AgeRating;
   const contentTagsRaw = formData.get("contentTags") as string;
   const ownerIdRaw = formData.get("ownerId") as string;
-  
+
   const coverFile = formData.get("coverImage") as File;
 
   // 3. Validação Básica
@@ -60,7 +60,7 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
     const fileBuffer = Buffer.from(await coverFile.arrayBuffer());
     // Nome único: timestamp-nome-limpo.ext
     const fileName = `covers/${Date.now()}-${coverFile.name.replace(/\s+/g, '-').toLowerCase()}`;
-    
+
     await s3.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileName,
@@ -74,7 +74,7 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
     // 5. Processamento de Dados
     const genres = genresRaw.split(",").map(s => s.trim()).filter(Boolean);
     const contentTags = contentTagsRaw ? contentTagsRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
-    
+
     // Tratamento do OwnerId (se vier "none" ou vazio, vira null)
     const ownerId = (ownerIdRaw && ownerIdRaw !== "none") ? ownerIdRaw : null;
 
@@ -100,7 +100,7 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
         studio,
         genres,
         coverUrl,
-        
+
         // Novos Campos
         ageRating,
         contentTags,
@@ -115,6 +115,6 @@ export async function createWork(prevState: WorkState, formData: FormData): Prom
   }
 
   // 7. Redirecionar e Revalidar
-  revalidatePath("/dashboard/obras"); // Atualiza a lista no painel
-  redirect("/dashboard/obras"); // Manda o usuário para a lista
+  revalidatePath("/works"); // Atualiza a lista no painel
+  redirect("/works"); // Manda o usuário para a lista
 }

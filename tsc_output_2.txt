@@ -1,0 +1,19 @@
+﻿.next/dev/types/validator.ts(24,44): error TS2344: Type 'Route' does not satisfy the constraint '"/"'.
+  Type 'LayoutRoutes' is not assignable to type '"/"'.
+    Type '"/dashboard"' is not assignable to type '"/"'.
+.next/dev/types/validator.ts(24,75): error TS2344: Type 'Route' does not satisfy the constraint '"/"'.
+  Type 'LayoutRoutes' is not assignable to type '"/"'.
+    Type '"/dashboard"' is not assignable to type '"/"'.
+.next/dev/types/validator.ts(42,39): error TS2307: Cannot find module '../../../src/app/dashboard/cosmeticos/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(51,39): error TS2307: Cannot find module '../../../src/app/dashboard/financeiro/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(60,39): error TS2307: Cannot find module '../../../src/app/dashboard/moderacao/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(69,39): error TS2307: Cannot find module '../../../src/app/dashboard/obras/[id]/chapters/[chapterId]/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(78,39): error TS2307: Cannot find module '../../../src/app/dashboard/obras/[id]/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(87,39): error TS2307: Cannot find module '../../../src/app/dashboard/obras/novos/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(96,39): error TS2307: Cannot find module '../../../src/app/dashboard/obras/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(105,39): error TS2307: Cannot find module '../../../src/app/dashboard/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(114,39): error TS2307: Cannot find module '../../../src/app/dashboard/users/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(123,39): error TS2307: Cannot find module '../../../src/app/dashboard/workspace/page.js' or its corresponding type declarations.
+.next/dev/types/validator.ts(156,39): error TS2307: Cannot find module '../../../src/app/dashboard/layout.js' or its corresponding type declarations.
+src/components/admin/chapter-row-actions.tsx(4,32): error TS2307: Cannot find module '@/actions/workflow' or its corresponding type declarations.
+src/components/admin/task-card.tsx(11,56): error TS2307: Cannot find module '@/actions/workflow' or its corresponding type declarations.

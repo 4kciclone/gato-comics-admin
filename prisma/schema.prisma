@@ -111,6 +111,15 @@ enum LiteSource {
   OTHER
 }
 
+// Gamification
+enum AchievementType {
+  READING_COUNT
+  COMMENT_COUNT
+  SUBSCRIPTION_LENGTH
+  BINGE_READER
+  SPECIAL_EVENT
+}
+
 // --------------------------------------------------------
 // MODELOS DE USUÁRIO & ECONOMIA
 // --------------------------------------------------------
@@ -152,6 +161,11 @@ model User {
   equippedCommentBackground   Cosmetic? @relation("EquippedCommentBg", fields: [equippedCommentBackgroundId], references: [id], onDelete: SetNull)
   equippedProfileBanner       Cosmetic? @relation("EquippedProfileBanner", fields: [equippedProfileBannerId], references: [id], onDelete: SetNull)
 
+  // Gamification (Títulos)
+  equippedTitleId             String?
+  equippedTitle               Achievement? @relation("EquippedTitle", fields: [equippedTitleId], references: [id], onDelete: SetNull)
+  achievements                UserAchievement[]
+
   // Relacionamentos Gerais
   transactions        Transaction[]
   unlocks             Unlock[]
@@ -162,6 +176,7 @@ model User {
   posts               Post[]
   likes               Like[]
   workLikes           WorkLike[]
+  readingHistory      ReadingHistory[]
 
   promoRedemptions    PromoCodeRedemption[]
 
@@ -266,6 +281,7 @@ model Work {
   staff          WorkStaff[]
 
   featuredByUsers      User[]         @relation("UserFeaturedWorks")
+  readingHistory       ReadingHistory[]
 
   @@map("works")
 }
@@ -281,12 +297,9 @@ model Chapter {
   isFree            Boolean           @default(false)
   images            String[]
   
-  // Workflow
-  workStatus        ChapterWorkStatus @default(DRAFT)
-  rawZipUrl         String?
-  translationUrl    String?
-  editedZipUrl      String?
-  workflowStartedAt DateTime?
+  // Agendamento e Acesso Direto
+  workStatus        ChapterWorkStatus @default(PUBLISHED)
+  publishAt         DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,6 +307,7 @@ model Chapter {
   work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
   unlocks   Unlock[]
   comments  Comment[]
+  readingHistory ReadingHistory[]
 
   @@unique([workId, slug])
   @@unique([workId, order])
@@ -587,4 +601,55 @@ model PasswordResetToken {
 
   @@index([email])
   @@map("password_reset_tokens")
+}
+
+// --------------------------------------------------------
+// GAMIFICATION E ESTATÍSTICAS (WRAPPED)
+// --------------------------------------------------------
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  imageUrl    String?
+  type        AchievementType
+  threshold   Int      @default(1) // Quantidade necessária para bater a meta
+  isHidden    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  users       UserAchievement[]
+  equippedBy  User[]   @relation("EquippedTitle")
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model ReadingHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  workId    String
+  chapterId String
+  readAt    DateTime @default(now())
+  
+  // Guardamos também duração estimada ou páginas se quisermos depois
+  timeSpentSeconds Int?
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([workId])
+  @@map("reading_history")
 }
