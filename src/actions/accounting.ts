@@ -11,9 +11,10 @@ export type AccountingReportData = {
         details: any[];
     };
     subscriptions: {
-        totalCount: number;
-        byTier: Record<string, number>;
-        logs: any[];
+        totalValue: number;
+        count: number;
+        byType: Record<string, number>;
+        details: any[];
     };
 };
 
@@ -48,13 +49,20 @@ export async function getAccountingData(startDate?: Date, endDate?: Date) {
         },
     });
 
-    // 2. Buscar Logs de Assinatura
-    const subLogs = await prisma.activityLog.findMany({
+    // 2. Buscar Logs de Assinatura (Tabela Nova)
+    const subActivities = await prisma.subscriptionActivity.findMany({
         where: {
-            type: "NEW_SUBSCRIPTION",
             createdAt: {
                 gte: start,
                 lte: end,
+            },
+        },
+        include: {
+            user: {
+                select: {
+                    name: true,
+                    email: true,
+                },
             },
         },
         orderBy: {
@@ -63,20 +71,25 @@ export async function getAccountingData(startDate?: Date, endDate?: Date) {
     });
 
     const coinPacks = {
-        totalValue: deposits.reduce((acc, tx) => acc + tx.amount, 0),
+        totalValue: deposits.reduce((acc: number, tx: any) => acc + tx.amount, 0),
         count: deposits.length,
         details: deposits,
     };
 
     const subscriptions = {
-        totalCount: subLogs.length,
-        byTier: subLogs.reduce((acc: any, log: any) => {
-            // Tenta extrair o tier do metadata ou da mensagem
-            const tier = log.metadata?.tier || "Desconhecido";
-            acc[tier] = (acc[tier] || 0) + 1;
+        totalValue: subActivities.reduce((acc: number, act: any) => acc + act.amountPaid, 0),
+        count: subActivities.length,
+        byType: subActivities.reduce((acc: Record<string, number>, act: any) => {
+            let label = "Compra";
+            if (act.type === "DOWNGRADE") label = "Downgrade";
+            else if (act.type.startsWith("UPGRADE")) label = "Upgrade";
+            else if (act.oldTier === act.newTier) label = "Renovação";
+            else if (!act.oldTier || act.oldTier === "NONE") label = "Primeira Assinatura";
+
+            acc[label] = (acc[label] || 0) + 1;
             return acc;
         }, {}),
-        logs: subLogs,
+        details: subActivities,
     };
 
     return {
@@ -116,17 +129,23 @@ export async function exportAccountingCSV(startDateStr: string, endDateStr: stri
             ...packRows.map(row => row.join(","))
         ].join("\n");
 
-        // --- CSV 2: Assinaturas ---
-        const subHeaders = ["Data", "Mensagem"];
-        const subRows = data.subscriptions.logs.map((log: any) => [
-            format(log.createdAt, "dd/MM/yyyy HH:mm"),
-            `"${log.message.replace(/"/g, '""')}"`
+        // --- CSV 2: Assinaturas Detalhadas ---
+        const subHeaders = ["Data", "Usuario", "Email", "Tipo", "Plano Antigo", "Novo Plano", "Valor Pago", "Timing"];
+        const subRows = data.subscriptions.details.map((act: any) => [
+            format(act.createdAt, "dd/MM/yyyy HH:mm"),
+            `"${(act.user?.name || "N/A").replace(/"/g, '""')}"`,
+            `"${(act.user?.email || "N/A").replace(/"/g, '""')}"`,
+            act.type,
+            act.oldTier || "NENHUM",
+            act.newTier,
+            act.amountPaid,
+            act.timing
         ]);
 
         const subsCsv = [
-            "RELATORIO DE NOVAS ASSINATURAS",
+            "RELATORIO DE ATIVIDADES DE ASSINATURA",
             subHeaders.join(","),
-            ...subRows.map(row => row.join(","))
+            ...subRows.map((row: (string | number)[]) => row.join(","))
         ].join("\n");
 
         const fullCsv = packsCsv + "\n\n" + subsCsv;

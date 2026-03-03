@@ -163,19 +163,108 @@ export default function AccountingPage() {
 
                         <Card className="card-premium border-purple-500/20">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Novas Assinaturas</CardTitle>
+                                <CardTitle className="text-sm font-medium">Faturamento de Assinaturas</CardTitle>
                                 <Zap className="h-4 w-4 text-purple-400" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-purple-400">
-                                    {data.subscriptions.totalCount} Conversões
+                                    R$ {data.subscriptions.totalValue.toLocaleString()} recebidos
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Novos planos registrados no log.
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {Object.entries(data.subscriptions.byType).map(([type, count]) => (
+                                        <Badge key={type} variant="secondary" className="text-[10px] bg-purple-500/10 text-purple-300 border-purple-500/20">
+                                            {type}: {count as number}
+                                        </Badge>
+                                    ))}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    {data.subscriptions.count} movimentações registradas.
                                 </p>
                             </CardContent>
                         </Card>
                     </div>
+
+                    <Card className="card-premium">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ArrowUpRight className="h-5 w-5 text-purple-400" /> Atividades de Assinatura
+                            </CardTitle>
+                            <CardDescription>Upgrade, Downgrade, Renovação e Primeiras Assinaturas.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Data</TableHead>
+                                        <TableHead>Usuário</TableHead>
+                                        <TableHead>Tipo</TableHead>
+                                        <TableHead>Fluxo</TableHead>
+                                        <TableHead>Valor</TableHead>
+                                        <TableHead>Timing</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.subscriptions.details.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                Nenhuma atividade de assinatura no período.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        data.subscriptions.details.map((act: any) => {
+                                            let label = "Compra";
+                                            let color = "bg-green-500/10 text-green-400 border-green-500/20";
+                                            if (act.type === "DOWNGRADE") {
+                                                label = "Downgrade";
+                                                color = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+                                            } else if (act.type.startsWith("UPGRADE")) {
+                                                label = "Upgrade";
+                                                color = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                                            } else if (act.oldTier === act.newTier) {
+                                                label = "Renovação";
+                                                color = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                                            } else if (!act.oldTier || act.oldTier === "NONE") {
+                                                label = "Primeira Assinatura";
+                                                color = "bg-purple-500/10 text-purple-400 border-purple-500/20";
+                                            }
+
+                                            return (
+                                                <TableRow key={act.id}>
+                                                    <TableCell className="text-xs font-mono">
+                                                        {format(new Date(act.createdAt), "dd/MM/yy HH:mm")}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="font-medium">{act.user?.name || "N/A"}</div>
+                                                        <div className="text-[10px] text-muted-foreground">{act.user?.email}</div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className={cn("text-[10px]", color)}>
+                                                            {label}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-[10px]">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-muted-foreground">{act.oldTier || "NONE"}</span>
+                                                            <ArrowUpRight className="h-3 w-3 text-muted-foreground" />
+                                                            <span className="font-bold text-foreground">{act.newTier}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="font-bold text-emerald-400">
+                                                        R$ {act.amountPaid.toLocaleString()}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary" className="text-[9px] uppercase">
+                                                            {act.timing}
+                                                        </Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
 
                     <Card className="card-premium">
                         <CardHeader>
