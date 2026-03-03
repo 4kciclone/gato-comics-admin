@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserActionsDropdown } from "@/components/users/UserActionsDropdown";
 
 export default async function UsersPage() {
     const users = await prisma.user.findMany({
@@ -78,11 +79,14 @@ export default async function UsersPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" asChild title="Ver Perfil">
-                                            <Link href={`/users/${user.id}`}>
-                                                <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                                            </Link>
-                                        </Button>
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button variant="ghost" size="icon" asChild title="Ver Perfil">
+                                                <Link href={`/users/${user.id}`}>
+                                                    <Info className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                                </Link>
+                                            </Button>
+                                            <UserActionsDropdown user={{ id: user.id, username: user.username, role: user.role }} />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))

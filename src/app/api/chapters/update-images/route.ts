@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    
+
     const chapterId = formData.get("chapterId") as string;
     const workId = formData.get("workId") as string;
     const file = formData.get("file") as File;
 
     if (!chapterId || !file || file.size === 0) {
-      return NextResponse.json({ 
-        error: "Arquivo inválido." 
+      return NextResponse.json({
+        error: "Arquivo inválido."
       }, { status: 400 });
     }
 
@@ -50,13 +50,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    imagesToUpload.sort((a, b) => 
+    imagesToUpload.sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     );
 
     if (imagesToUpload.length === 0) {
-      return NextResponse.json({ 
-        error: "O ZIP está vazio ou não contém imagens válidas." 
+      return NextResponse.json({
+        error: "O ZIP está vazio ou não contém imagens válidas."
       }, { status: 400 });
     }
 
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     for (const img of imagesToUpload) {
       const ext = img.name.split('.').pop()?.toLowerCase();
       const contentType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-      
+
       const key = `chapters/${workId}/${chapterId}/${timestamp}-${img.name}`;
 
       await s3.send(new PutObjectCommand({
@@ -87,16 +87,16 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       message: "Páginas substituídas com sucesso!",
-      redirectUrl: `/dashboard/obras/${workId}`
+      redirectUrl: `/works/${workId}`
     });
 
   } catch (error) {
     console.error("Erro ao atualizar imagens:", error);
-    return NextResponse.json({ 
-      error: "Erro ao processar o arquivo ZIP." 
+    return NextResponse.json({
+      error: "Erro ao processar o arquivo ZIP."
     }, { status: 500 });
   }
 }

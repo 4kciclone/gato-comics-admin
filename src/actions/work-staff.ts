@@ -15,14 +15,14 @@ export async function addStaffToWork(workId: string, email: string, role: UserRo
   try {
     // Atualiza o cargo do usuário se ele for apenas USER, para que ele possa acessar o painel
     if (user.role === "USER") {
-        await prisma.user.update({ where: { id: user.id }, data: { role: role } });
+      await prisma.user.update({ where: { id: user.id }, data: { role: role } });
     }
 
     await prisma.workStaff.create({
       data: { workId, userId: user.id, role }
     });
-    
-    revalidatePath(`/dashboard/obras/${workId}`);
+
+    revalidatePath(`/works/${workId}`);
     return { success: true };
   } catch (error) {
     return { error: "Erro ao adicionar. Verifique se o usuário já tem essa função nesta obra." };
@@ -34,5 +34,5 @@ export async function removeStaffFromWork(staffId: string) {
   if (!session || !["OWNER", "ADMIN"].includes(session.user.role)) return { error: "Sem permissão." };
 
   await prisma.workStaff.delete({ where: { id: staffId } });
-  revalidatePath("/dashboard/obras/[id]"); // Revalida a página
+  revalidatePath("/works/[id]"); // Revalida a página
 }

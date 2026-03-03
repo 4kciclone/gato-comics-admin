@@ -24,6 +24,7 @@ type ReportItem = {
     premiumRevenue: number;
     tiersRevenue: { BRONZE: number; SILVER: number; GOLD: number; DIAMOND: number; NONE: number; };
     tiersCount: { BRONZE: number; SILVER: number; GOLD: number; DIAMOND: number; NONE: number; };
+    liteSourcesRevenue: { AD_WATCH: number; COIN_PACK: number; SUBSCRIPTION: number; PROMO_CODE: number; ADMIN_GIFT: number; OTHER: number; };
 };
 
 export default function WorksRevenuePage() {
@@ -204,6 +205,7 @@ export default function WorksRevenuePage() {
                                             <th className="px-4 py-4 font-medium">Unlocks</th>
                                             <th className="px-4 py-4 font-medium">Faturamento Premium</th>
                                             <th className="px-4 py-4 font-medium">Faturamento Lite</th>
+                                            <th className="px-4 py-4 font-medium">Divisão (Lite) por Origem</th>
                                             <th className="px-4 py-4 font-medium">Divisão (Premium) por Assinatura</th>
                                         </tr>
                                     </thead>
@@ -230,6 +232,40 @@ export default function WorksRevenuePage() {
                                                     <Badge variant="outline" className="bg-slate-500/10 text-slate-300 border-slate-500/30 font-mono text-xs">
                                                         {item.liteRevenue.toLocaleString()} pts
                                                     </Badge>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex flex-wrap gap-2 text-xs">
+                                                        {item.liteSourcesRevenue.AD_WATCH > 0 && (
+                                                            <span className="bg-sky-500/20 text-sky-300 px-2 py-1 rounded-md border border-sky-500/30">
+                                                                Anúncios: {item.liteSourcesRevenue.AD_WATCH}
+                                                            </span>
+                                                        )}
+                                                        {item.liteSourcesRevenue.COIN_PACK > 0 && (
+                                                            <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded-md border border-green-500/30">
+                                                                Pacotes Pagos: {item.liteSourcesRevenue.COIN_PACK}
+                                                            </span>
+                                                        )}
+                                                        {item.liteSourcesRevenue.SUBSCRIPTION > 0 && (
+                                                            <span className="bg-purple-500/20 text-purple-300 px-2 py-1 rounded-md border border-purple-500/30">
+                                                                Assinatura Brinde: {item.liteSourcesRevenue.SUBSCRIPTION}
+                                                            </span>
+                                                        )}
+                                                        {item.liteSourcesRevenue.PROMO_CODE > 0 && (
+                                                            <span className="bg-pink-500/20 text-pink-300 px-2 py-1 rounded-md border border-pink-500/30">
+                                                                Promo Code: {item.liteSourcesRevenue.PROMO_CODE}
+                                                            </span>
+                                                        )}
+                                                        {item.liteSourcesRevenue.ADMIN_GIFT > 0 && (
+                                                            <span className="bg-rose-500/20 text-rose-300 px-2 py-1 rounded-md border border-rose-500/30">
+                                                                Presente: {item.liteSourcesRevenue.ADMIN_GIFT}
+                                                            </span>
+                                                        )}
+                                                        {item.liteSourcesRevenue.OTHER > 0 && (
+                                                            <span className="bg-muted/50 text-muted-foreground px-2 py-1 rounded-md border border-border">
+                                                                Outros/Antigos: {item.liteSourcesRevenue.OTHER}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex flex-wrap gap-2 text-xs">

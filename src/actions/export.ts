@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { getWorksRevenueReport } from "./reports";
+import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -18,62 +18,89 @@ export async function exportWorksRevenueCSV(
     const endDate = new Date(endDateStr);
 
     try {
-        const report = await getWorksRevenueReport(startDate, endDate);
+        const unlocks = await prisma.unlock.findMany({
+            where: {
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate,
+                }
+            },
+            include: {
+                user: {
+                    select: {
+                        name: true,
+                        email: true,
+                        subscriptionTier: true,
+                    }
+                },
+                chapter: {
+                    select: {
+                        title: true,
+                        work: {
+                            select: {
+                                title: true,
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: "desc"
+            }
+        });
 
-        if (!report.success || !report.data) {
-            return { success: false, error: "Falha ao compilar dados para CSV." };
+        if (!unlocks || unlocks.length === 0) {
+            return { success: false, error: "Nenhum destravamento encontrado no período." };
         }
-
-        const data = report.data;
 
         // Cabeçalhos (Headers) RFC 4180
         const headers = [
-            "ID da Obra",
-            "Título da Obra",
-            "Total de Unlocks",
-            "Receita Lite (Qtd Moedas)",
-            "Receita Premium (Qtd Moedas)",
-            "Receita de Nao-Assinantes",
-            "Receita Ouro",
-            "Receita Prata",
-            "Receita Bronze",
-            "Receita Diamante",
-            "Unlocks Nao-Assinantes",
-            "Unlocks Ouro",
-            "Unlocks Prata",
-            "Unlocks Bronze",
-            "Unlocks Diamante"
+            "Data/Hora",
+            "Usuario (Nome)",
+            "Usuario (Email)",
+            "Obra",
+            "Capitulo",
+            "Tipo Moeda",
+            "Moedas Gastas",
+            "Origem da Moeda",
+            "Tier do Usuario no Momento"
         ];
 
         // Linhas de Dados
-        const rows = data.map((item) => [
-            item.workId,
-            `"${item.workTitle.replace(/"/g, '""')}"`, // Escape quotes
-            item.totalUnlocks,
-            item.liteRevenue,
-            item.premiumRevenue,
-            item.tiersRevenue.NONE,
-            item.tiersRevenue.GOLD,
-            item.tiersRevenue.SILVER,
-            item.tiersRevenue.BRONZE,
-            item.tiersRevenue.DIAMOND,
-            item.tiersCount.NONE,
-            item.tiersCount.GOLD,
-            item.tiersCount.SILVER,
-            item.tiersCount.BRONZE,
-            item.tiersCount.DIAMOND,
-        ]);
+        const rows = unlocks.map((unlock: any) => {
+            const userName = unlock.user?.name || "Desconhecido";
+            const userEmail = unlock.user?.email || "N/A";
+            const workTitle = unlock.chapter.work.title || "Obra Deletada";
+            const chapterTitle = unlock.chapter.title || "Capitulo Deletado";
+            const currency = unlock.currencyUsed === "LITE" ? "Patinha Lite" : "Patinha Premium";
+            const amount = unlock.amountSpent || 0;
+            const source = unlock.currencyUsed === "LITE" ? (unlock.liteSource || "OUTROS") : "COMPRA_DIRETA_PREMIUM";
+            const tier = unlock.user?.subscriptionTier || "NENHUM";
+            const dateStr = format(unlock.createdAt, "dd/MM/yyyy HH:mm:ss");
+
+            return [
+                `"${dateStr}"`,
+                `"${userName.replace(/"/g, '""')}"`,
+                `"${userEmail.replace(/"/g, '""')}"`,
+                `"${workTitle.replace(/"/g, '""')}"`,
+                `"${chapterTitle.replace(/"/g, '""')}"`,
+                `"${currency}"`,
+                amount,
+                `"${source}"`,
+                `"${tier}"`
+            ];
+        });
 
         const csvContent = [
             headers.join(","),
-            ...rows.map(row => row.join(","))
+            ...rows.map((row: any) => row.join(","))
         ].join("\n");
 
-        const filename = `receitas_obras_${format(startDate, "yyyy-MM-dd")}_a_${format(endDate, "yyyy-MM-dd")}.csv`;
+        const filename = `faturamento_detalhado_${format(startDate, "yyyy-MM-dd")}_a_${format(endDate, "yyyy-MM-dd")}.csv`;
 
         return { success: true, csv: csvContent, filename };
     } catch (e) {
         console.error(e);
-        return { success: false, error: "Erro gerando arquivo." };
+        return { success: false, error: "Erro gerando arquivo detalhado." };
     }
 }

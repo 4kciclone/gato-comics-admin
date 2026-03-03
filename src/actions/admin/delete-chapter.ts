@@ -38,28 +38,28 @@ export async function deleteChapter(workId: string, chapterId: string) {
     // 3. Preparar exclusão do R2
     if (chapter.images && chapter.images.length > 0) {
       const publicUrl = process.env.R2_PUBLIC_URL || "";
-      
+
       const objectsToDelete = chapter.images.map((url) => {
         // Lógica para recuperar a KEY original baseada no seu código de upload:
         // O upload salva: `${process.env.R2_PUBLIC_URL}/${key}`
         // Então aqui removemos a parte da URL pública para sobrar só "chapters/workId/..."
         let key = url;
-        
+
         if (publicUrl && url.startsWith(publicUrl)) {
-            // Remove a URL pública e a barra inicial se sobrar
-            key = url.replace(publicUrl, "");
-            if (key.startsWith("/")) key = key.substring(1);
+          // Remove a URL pública e a barra inicial se sobrar
+          key = url.replace(publicUrl, "");
+          if (key.startsWith("/")) key = key.substring(1);
         } else {
-            // Fallback: Tenta pegar o caminho relativo via URL object
-            try {
-                const urlObj = new URL(url);
-                key = urlObj.pathname.startsWith("/") ? urlObj.pathname.substring(1) : urlObj.pathname;
-            } catch (e) {
-                // Se falhar, usa a string como está
-                key = url;
-            }
+          // Fallback: Tenta pegar o caminho relativo via URL object
+          try {
+            const urlObj = new URL(url);
+            key = urlObj.pathname.startsWith("/") ? urlObj.pathname.substring(1) : urlObj.pathname;
+          } catch (e) {
+            // Se falhar, usa a string como está
+            key = url;
+          }
         }
-        
+
         return { Key: key };
       });
 
@@ -67,11 +67,11 @@ export async function deleteChapter(workId: string, chapterId: string) {
       // Se tiver mais que 1000 páginas, seria ideal fazer chunks, mas para mangás geralmente é ok.
       if (objectsToDelete.length > 0) {
         await s3.send(new DeleteObjectsCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
-            Delete: {
-                Objects: objectsToDelete,
-                Quiet: true // Não retorna erro se o arquivo já não existir
-            }
+          Bucket: process.env.R2_BUCKET_NAME,
+          Delete: {
+            Objects: objectsToDelete,
+            Quiet: true // Não retorna erro se o arquivo já não existir
+          }
         }));
       }
     }
@@ -82,7 +82,7 @@ export async function deleteChapter(workId: string, chapterId: string) {
     });
 
     // 5. Atualizar Cache
-    revalidatePath(`/dashboard/obras/${workId}`);
+    revalidatePath(`/works/${workId}`);
 
   } catch (error) {
     console.error("Erro ao deletar capítulo:", error);
@@ -90,5 +90,5 @@ export async function deleteChapter(workId: string, chapterId: string) {
   }
 
   // Redireciona para a lista de capítulos da obra
-  redirect(`/dashboard/obras/${workId}`);
+  redirect(`/works/${workId}`);
 }

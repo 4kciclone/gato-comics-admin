@@ -12,7 +12,8 @@ import {
   ShieldAlert,
   Settings,
   Image as ImageIcon,
-  TrendingUp
+  TrendingUp,
+  Calculator
 } from "lucide-react";
 
 import {
@@ -58,6 +59,11 @@ const adminMenu = [
     title: "Cupons Promocionais",
     icon: Ticket,
     url: "/finance/promo-codes",
+  },
+  {
+    title: "Contabilidade (Contador)",
+    icon: Calculator,
+    url: "/finance/accounting",
   },
   {
     title: "Loja & Cosméticos",

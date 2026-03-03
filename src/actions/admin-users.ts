@@ -24,7 +24,7 @@ export async function updateUserRole(userId: string, newRole: UserRole) {
       where: { id: userId },
       data: { role: newRole }
     });
-    revalidatePath("/dashboard/users");
+    revalidatePath("/users");
     return { success: "Cargo atualizado com sucesso." };
   } catch (error) {
     return { error: "Erro ao atualizar cargo." };
@@ -37,7 +37,7 @@ export async function updateUserRole(userId: string, newRole: UserRole) {
 export async function managePremium(userId: string, amount: number, reason: string) {
   try {
     const adminId = await checkOwner();
-    
+
     // Transação atômica: Atualiza saldo + Cria registro financeiro
     await prisma.$transaction([
       prisma.user.update({
@@ -56,7 +56,7 @@ export async function managePremium(userId: string, amount: number, reason: stri
       })
     ]);
 
-    revalidatePath("/dashboard/users");
+    revalidatePath("/users");
     return { success: "Saldo Premium atualizado." };
   } catch (error) {
     return { error: "Erro ao movimentar saldo." };
@@ -88,7 +88,7 @@ export async function giveLiteCoins(userId: string, amount: number, daysValid: n
       })
     ]);
 
-    revalidatePath("/dashboard/users");
+    revalidatePath("/users");
     return { success: `Enviado ${amount} Lite (Validade: ${daysValid} dias).` };
   } catch (error) {
     return { error: "Erro ao enviar Lite." };
@@ -116,13 +116,13 @@ export async function setSubscription(userId: string, tier: SubscriptionTier | "
 
     await prisma.user.update({
       where: { id: userId },
-      data: { 
+      data: {
         subscriptionTier: tier as SubscriptionTier,
         subscriptionValidUntil: validUntil
       }
     });
 
-    revalidatePath("/dashboard/users");
+    revalidatePath("/users");
     return { success: `Assinatura ${tier} concedida por ${days} dias.` };
   } catch (error) {
     return { error: "Erro ao definir assinatura." };

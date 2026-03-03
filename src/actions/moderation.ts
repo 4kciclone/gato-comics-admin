@@ -20,7 +20,7 @@ export async function dismissReports(reportIds: string[]) {
       where: { id: { in: reportIds } },
       data: { status: "RESOLVED", resolvedAt: new Date() }
     });
-    revalidatePath("/dashboard/moderacao");
+    revalidatePath("/moderation/reports");
     return { success: "Denúncias ignoradas." };
   } catch (error) {
     return { error: "Erro ao ignorar denúncias." };
@@ -71,7 +71,7 @@ export async function punishUser(
       data: { status: "RESOLVED", resolvedAt: new Date() }
     });
 
-    revalidatePath("/dashboard/moderacao");
+    revalidatePath("/moderation/reports");
     return { success: "Punição aplicada com sucesso." };
 
   } catch (error) {

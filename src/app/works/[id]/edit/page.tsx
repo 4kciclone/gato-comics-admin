@@ -106,21 +106,35 @@ export default function EditWorkPage({
                                 <Label htmlFor="studio">Estúdio/Artista</Label>
                                 <Input id="studio" name="studio" defaultValue={work.studio || ""} placeholder="Nome do estúdio ou desenhista" />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="ageRating">Classificação Indicativa</Label>
-                                <Select name="ageRating" defaultValue={work.ageRating} required>
-                                    <SelectTrigger id="ageRating">
-                                        <SelectValue placeholder="Selecione" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="LIVRE">Livre</SelectItem>
-                                        <SelectItem value="DEZ_ANOS">10 Anos</SelectItem>
-                                        <SelectItem value="DOZE_ANOS">12 Anos</SelectItem>
-                                        <SelectItem value="QUATORZE_ANOS">14 Anos</SelectItem>
-                                        <SelectItem value="DEZESSEIS_ANOS">16 Anos</SelectItem>
-                                        <SelectItem value="DEZOITO_ANOS">18 Anos (+Adulto)</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="ageRating">Classificação Indicativa</Label>
+                                    <Select name="ageRating" defaultValue={work.ageRating} required>
+                                        <SelectTrigger id="ageRating">
+                                            <SelectValue placeholder="Selecione" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="LIVRE">Livre</SelectItem>
+                                            <SelectItem value="DEZ_ANOS">10 Anos</SelectItem>
+                                            <SelectItem value="DOZE_ANOS">12 Anos</SelectItem>
+                                            <SelectItem value="QUATORZE_ANOS">14 Anos</SelectItem>
+                                            <SelectItem value="DEZESSEIS_ANOS">16 Anos</SelectItem>
+                                            <SelectItem value="DEZOITO_ANOS">18 Anos (+Adulto)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="isHidden">Visibilidade no Catálogo</Label>
+                                    <Select name="isHidden" defaultValue={work.isHidden ? "true" : "false"} required>
+                                        <SelectTrigger id="isHidden">
+                                            <SelectValue placeholder="Selecione" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="false">Público (Visível p/ Todos)</SelectItem>
+                                            <SelectItem value="true">Oculto (Rascunho/Fechado)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
 
@@ -155,6 +169,6 @@ export default function EditWorkPage({
                     </Button>
                 </div>
             </form>
-        </div>
+        </div >
     );
 }

@@ -62,7 +62,7 @@ export async function createPromoCode(prevState: CodeState, formData: FormData):
       }
     });
 
-    revalidatePath("/dashboard/codigos");
+    revalidatePath("/finance/promo-codes");
     return { success: "Código criado com sucesso!" };
   } catch (error) {
     console.error("Erro ao criar código:", error);
@@ -71,14 +71,14 @@ export async function createPromoCode(prevState: CodeState, formData: FormData):
 }
 
 export async function deletePromoCode(id: string) {
-    const session = await auth();
-    if (session?.user?.role !== "OWNER") return { error: "Sem permissão." };
-    
-    try {
-        await prisma.promoCode.delete({ where: { id } });
-        revalidatePath("/dashboard/codigos");
-        return { success: "Código deletado." };
-    } catch (e) {
-        return { error: "Erro ao deletar." };
-    }
+  const session = await auth();
+  if (session?.user?.role !== "OWNER") return { error: "Sem permissão." };
+
+  try {
+    await prisma.promoCode.delete({ where: { id } });
+    revalidatePath("/finance/promo-codes");
+    return { success: "Código deletado." };
+  } catch (e) {
+    return { error: "Erro ao deletar." };
+  }
 }

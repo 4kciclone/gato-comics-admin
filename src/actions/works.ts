@@ -139,6 +139,8 @@ export async function editWork(workId: string, prevState: WorkState, formData: F
   const genresRaw = formData.get("genres") as string;
 
   const ageRating = formData.get("ageRating") as AgeRating;
+  const isHiddenRaw = formData.get("isHidden") as string;
+  const isHidden = isHiddenRaw === "true";
   const coverFile = formData.get("coverImage") as File | null;
 
   // 3. Validação Básica
@@ -186,6 +188,7 @@ export async function editWork(workId: string, prevState: WorkState, formData: F
         ageRating,
         coverUrl, // Substitui a nova ou mantem a velha
         isAdult: ageRating === "DEZOITO_ANOS",
+        isHidden,
       }
     });
 

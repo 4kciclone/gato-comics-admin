@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth"; 
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { S3Client, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { revalidatePath } from "next/cache";
@@ -44,40 +44,40 @@ export async function deleteWork(workId: string) {
 
     // Adiciona a capa da obra se for do R2
     if (work.coverUrl && work.coverUrl.includes("r2.dev")) { // ou seu domínio R2
-         // Lógica simples de extração, ajuste conforme sua URL
-         let key = work.coverUrl;
-         if (publicUrl && key.startsWith(publicUrl)) {
-            key = key.replace(publicUrl, "");
-            if (key.startsWith("/")) key = key.substring(1);
-            allKeysToDelete.push({ Key: key });
-         }
+      // Lógica simples de extração, ajuste conforme sua URL
+      let key = work.coverUrl;
+      if (publicUrl && key.startsWith(publicUrl)) {
+        key = key.replace(publicUrl, "");
+        if (key.startsWith("/")) key = key.substring(1);
+        allKeysToDelete.push({ Key: key });
+      }
     }
 
     // Adiciona imagens dos capítulos
     work.chapters.forEach(chapter => {
-        chapter.images.forEach(url => {
-            let key = url;
-            if (publicUrl && url.startsWith(publicUrl)) {
-                key = url.replace(publicUrl, "");
-                if (key.startsWith("/")) key = key.substring(1);
-            }
-            allKeysToDelete.push({ Key: key });
-        });
+      chapter.images.forEach(url => {
+        let key = url;
+        if (publicUrl && url.startsWith(publicUrl)) {
+          key = url.replace(publicUrl, "");
+          if (key.startsWith("/")) key = key.substring(1);
+        }
+        allKeysToDelete.push({ Key: key });
+      });
     });
 
     // 3. Deletar do R2 em lotes de 1000 (Limite da API S3)
     if (allKeysToDelete.length > 0) {
-        const chunkSize = 1000;
-        for (let i = 0; i < allKeysToDelete.length; i += chunkSize) {
-            const chunk = allKeysToDelete.slice(i, i + chunkSize);
-            await s3.send(new DeleteObjectsCommand({
-                Bucket: process.env.R2_BUCKET_NAME,
-                Delete: {
-                    Objects: chunk,
-                    Quiet: true
-                }
-            }));
-        }
+      const chunkSize = 1000;
+      for (let i = 0; i < allKeysToDelete.length; i += chunkSize) {
+        const chunk = allKeysToDelete.slice(i, i + chunkSize);
+        await s3.send(new DeleteObjectsCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Delete: {
+            Objects: chunk,
+            Quiet: true
+          }
+        }));
+      }
     }
 
     // 4. Deletar a Obra do Banco (Cascading delete removerá capítulos e staff)
@@ -85,12 +85,12 @@ export async function deleteWork(workId: string) {
       where: { id: workId },
     });
 
-    revalidatePath("/dashboard/obras");
-    
+    revalidatePath("/works");
+
   } catch (error) {
     console.error("Erro ao deletar obra:", error);
     return { error: "Erro fatal ao deletar obra. Verifique logs." };
   }
 
-  redirect("/dashboard/obras");
+  redirect("/works");
 }

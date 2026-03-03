@@ -27,6 +27,14 @@ export type RevenueReportItem = {
         DIAMOND: number;
         NONE: number;
     };
+    liteSourcesRevenue: {
+        AD_WATCH: number;
+        COIN_PACK: number;
+        SUBSCRIPTION: number;
+        PROMO_CODE: number;
+        ADMIN_GIFT: number;
+        OTHER: number;
+    }
 };
 
 export async function getWorksRevenueReport(
@@ -90,6 +98,7 @@ export async function getWorksRevenueReport(
                     premiumRevenue: 0,
                     tiersRevenue: { BRONZE: 0, SILVER: 0, GOLD: 0, DIAMOND: 0, NONE: 0 },
                     tiersCount: { BRONZE: 0, SILVER: 0, GOLD: 0, DIAMOND: 0, NONE: 0 },
+                    liteSourcesRevenue: { AD_WATCH: 0, COIN_PACK: 0, SUBSCRIPTION: 0, PROMO_CODE: 0, ADMIN_GIFT: 0, OTHER: 0 },
                 });
             }
 
@@ -100,6 +109,10 @@ export async function getWorksRevenueReport(
             item.totalUnlocks += 1;
             if (unlock.currencyUsed === "LITE") {
                 item.liteRevenue += spend;
+
+                // Subdivisão por Origem da Patinha Lite
+                const liteSrc = unlock.liteSource || "OTHER";
+                item.liteSourcesRevenue[liteSrc as keyof typeof item.liteSourcesRevenue] += spend;
             } else if (unlock.currencyUsed === "PREMIUM") {
                 item.premiumRevenue += spend;
             }

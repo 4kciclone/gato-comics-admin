@@ -15,7 +15,7 @@ export async function authenticate(
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo: "/",
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -37,24 +37,24 @@ export async function authenticate(
 export async function logout() {
   try {
     const cookieStore = await cookies();
-    
+
     const isProduction = process.env.NODE_ENV === "production";
-    const cookieName = isProduction 
-      ? "__Secure-authjs.session-token" 
+    const cookieName = isProduction
+      ? "__Secure-authjs.session-token"
       : "authjs.session-token";
-      
+
     // Limpa o cookie compartilhado
     cookieStore.delete({
       name: cookieName,
       domain: isProduction ? ".gatocomics.com.br" : ".gatocomics.local",
-      path: "/", 
+      path: "/",
     });
 
     await signOut({ redirectTo: "/login" });
-    
+
   } catch (error) {
     if ((error as Error).message === "NEXT_REDIRECT") {
-        throw error;
+      throw error;
     }
     console.error("Erro no logout:", error);
     throw error;

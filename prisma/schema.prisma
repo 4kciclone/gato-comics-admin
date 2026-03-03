@@ -333,10 +333,11 @@ model Unlock {
   chapterId    String
   type         UnlockType
   
-  currencyUsed CurrencyType?
-  amountSpent  Int?         
+  currencyUsed  CurrencyType?
+  amountSpent   Int?         
+  liteSource    LiteSource?
 
-  expiresAt    DateTime?
+  expiresAt     DateTime?
   createdAt    DateTime     @default(now())
   // O default(now) aqui é CRÍTICO para não quebrar dados existentes na migração
   updatedAt    DateTime     @default(now()) @updatedAt 

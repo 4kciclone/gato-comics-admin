@@ -30,10 +30,10 @@ export async function createCosmetic(prevState: CosmeticState, formData: FormDat
   const validatedFields = CosmeticSchema.safeParse(Object.fromEntries(formData));
 
   if (!validatedFields.success) return { error: "Dados inválidos." };
-  
+
   try {
     await prisma.cosmetic.create({ data: validatedFields.data });
-    revalidatePath("/dashboard/cosmeticos");
+    revalidatePath("/shop/cosmetics");
     return { success: "Cosmético criado!" };
   } catch (error) {
     return { error: "Erro no banco de dados." };
@@ -49,7 +49,7 @@ export async function deleteCosmetic(id: string) {
 
   try {
     await prisma.cosmetic.delete({ where: { id } });
-    revalidatePath("/dashboard/cosmeticos");
+    revalidatePath("/shop/cosmetics");
     return { success: true };
   } catch (error) {
     return { error: "Erro ao deletar." };
@@ -75,7 +75,7 @@ export async function buyCosmetic(prevState: CosmeticState, formData: FormData):
 
     // Verifica posse
     const alreadyOwns = await prisma.userCosmetic.findUnique({
-        where: { userId_cosmeticId: { userId, cosmeticId } }
+      where: { userId_cosmeticId: { userId, cosmeticId } }
     });
     if (alreadyOwns) return { error: "Você já tem este item." };
 
