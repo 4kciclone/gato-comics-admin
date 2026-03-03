@@ -18,7 +18,14 @@ import { UserActionsDropdown } from "@/components/users/UserActionsDropdown";
 export default async function UsersPage() {
     const users = await prisma.user.findMany({
         take: 50,
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        include: {
+            liteCoinBatches: {
+                where: {
+                    expiresAt: { gte: new Date() }
+                }
+            }
+        }
     });
 
     return (
@@ -75,6 +82,9 @@ export default async function UsersPage() {
                                     <TableCell>
                                         <div className="flex flex-col text-xs font-semibold gap-1">
                                             <span className="text-yellow-500">{user.balancePremium} Premium</span>
+                                            <span className="text-sky-400">
+                                                {user.liteCoinBatches.reduce((acc, batch) => acc + batch.amount, 0)} Lites
+                                            </span>
                                             <span className="text-blue-400">{user.xp} XP</span>
                                         </div>
                                     </TableCell>

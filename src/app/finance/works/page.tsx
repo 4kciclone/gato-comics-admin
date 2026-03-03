@@ -11,9 +11,17 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getWorksRevenueReport } from "@/actions/reports";
 import { exportWorksRevenueCSV } from "@/actions/export";
+import { getWorksRevenueReport } from "@/actions/reports";
+import { prisma } from "@/lib/prisma"; // This will be used in a new server action or fetched directly if possible
 import Image from "next/image";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 // Típagem importada espelhando o report (poderia ser movida para tipo global, mas omitiremos pra agilidade)
 type ReportItem = {
@@ -34,19 +42,37 @@ export default function WorksRevenuePage() {
     });
 
     const [data, setData] = useState<ReportItem[]>([]);
+    const [works, setWorks] = useState<{ id: string; title: string }[]>([]);
+    const [selectedWork, setSelectedWork] = useState<string>("all");
     const [isLoading, setIsLoading] = useState(true);
     const [isExporting, setIsExporting] = useState(false);
+
+    useEffect(() => {
+        // Fetch works for the filter dropdown
+        async function loadWorks() {
+            try {
+                const res = await fetch("/api/works/list"); // I'll need to create this mini-endpoint or use a server action
+                if (res.ok) {
+                    const list = await res.json();
+                    setWorks(list);
+                }
+            } catch (e) {
+                console.error("Erro ao carregar lista de obras", e);
+            }
+        }
+        loadWorks();
+    }, []);
 
     useEffect(() => {
         if (date?.from && date?.to) {
             fetchData();
         }
-    }, [date]);
+    }, [date, selectedWork]);
 
     async function fetchData() {
         setIsLoading(true);
         try {
-            const res = await getWorksRevenueReport(date.from, date.to);
+            const res = await getWorksRevenueReport(date.from, date.to, selectedWork);
             if (res.success && res.data) {
                 setData(res.data);
             } else {
@@ -63,7 +89,11 @@ export default function WorksRevenuePage() {
         setIsExporting(true);
         const toastId = toast.loading("Gerando planilha CSV profissional...");
         try {
-            const res = await exportWorksRevenueCSV(date.from.toISOString(), date.to.toISOString());
+            const res = await exportWorksRevenueCSV(
+                date.from.toISOString(),
+                date.to.toISOString(),
+                selectedWork
+            );
 
             if (res.success && res.csv && res.filename) {
                 // Criar o download do arquivo no navegador (Blob Trick)
@@ -101,7 +131,21 @@ export default function WorksRevenuePage() {
                     </p>
                 </div>
 
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                    <Select value={selectedWork} onValueChange={setSelectedWork}>
+                        <SelectTrigger className="w-[200px] bg-background/50 glass border-primary/20">
+                            <SelectValue placeholder="Filtrar por Obra" />
+                        </SelectTrigger>
+                        <SelectContent className="glass">
+                            <SelectItem value="all">Todas as Obras</SelectItem>
+                            {works.map((w) => (
+                                <SelectItem key={w.id} value={w.id}>
+                                    {w.title}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button

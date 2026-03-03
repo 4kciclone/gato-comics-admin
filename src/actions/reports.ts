@@ -39,7 +39,8 @@ export type RevenueReportItem = {
 
 export async function getWorksRevenueReport(
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
+    workId?: string
 ): Promise<{ success: boolean; data?: RevenueReportItem[]; error?: string }> {
     const session = await auth();
     if (!session || !["ADMIN", "OWNER", "ACCOUNTANT"].includes(session.user.role)) {
@@ -56,7 +57,12 @@ export async function getWorksRevenueReport(
                 createdAt: {
                     gte: start,
                     lte: end,
-                }
+                },
+                ...(workId && workId !== "all" ? {
+                    chapter: {
+                        workId: workId
+                    }
+                } : {})
             },
             include: {
                 user: {

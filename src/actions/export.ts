@@ -7,7 +7,8 @@ import { ptBR } from "date-fns/locale";
 
 export async function exportWorksRevenueCSV(
     startDateStr: string,
-    endDateStr: string
+    endDateStr: string,
+    workId?: string
 ): Promise<{ success: boolean; csv?: string; filename?: string; error?: string }> {
     const session = await auth();
     if (!session || !["ADMIN", "OWNER", "ACCOUNTANT"].includes(session.user.role)) {
@@ -23,7 +24,12 @@ export async function exportWorksRevenueCSV(
                 createdAt: {
                     gte: startDate,
                     lte: endDate,
-                }
+                },
+                ...(workId && workId !== "all" ? {
+                    chapter: {
+                        workId: workId
+                    }
+                } : {})
             },
             include: {
                 user: {
